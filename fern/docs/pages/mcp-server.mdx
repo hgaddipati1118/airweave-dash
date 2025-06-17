@@ -1,0 +1,233 @@
+---
+title: MCP Server
+subtitle: Use Airweave as a Model Context Protocol server for AI agents
+slug: mcp-server
+description: Enable AI agents like Claude and Cursor to search across all your connected data sources through Airweave's MCP server implementation.
+---
+
+Airweave's MCP (Model Context Protocol) server lets AI assistants search through your connected data sources using natural language queries. Perfect for Claude Desktop, Cursor, and any MCP-compatible tool.
+
+<Tip title="What is MCP?">
+  **Model Context Protocol** is an open standard that enables AI assistants to interact with external tools and data sources. Airweave's MCP server transforms your collections into searchable knowledge bases that agents can query directly.
+</Tip>
+
+## Features
+
+<CardGroup cols={3}>
+  <Card title="Semantic Search" icon="fa-solid fa-search">
+    Query all your connected data sources with simple questions
+  </Card>
+  <Card title="AI Completions" icon="fa-solid fa-robot">
+    Get intelligent responses based on your data
+  </Card>
+  <Card title="Secure & Simple" icon="fa-solid fa-bolt">
+    API key authentication with zero setup required
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+<Steps>
+  <Step title="Get Your Credentials">
+    You'll need two things from your [Airweave dashboard](https://app.airweave.ai):
+    - **API Key** (Settings > API Keys)
+    - **Collection ID** (e.g., `my-collection-abc123`)
+  </Step>
+
+  <Step title="Configure Your AI Tool">
+    Choose your tool below and add the configuration. **No separate server setup needed** - your AI tool will automatically run the MCP server when needed.
+
+    <Tabs>
+      <Tab title="Cursor">
+        <Note title="Requirements">
+          Cursor version 0.45.6 or later
+        </Note>
+
+        1. Open **Cursor Settings**
+        2. Go to **Features > MCP Servers**
+        3. Click **"+ Add new global MCP server"**
+        4. Add this configuration:
+
+        ```json title="Cursor Configuration"
+        {
+          "mcpServers": {
+            "airweave-search": {
+              "command": "npx",
+              "args": ["-y", "airweave-mcp-search"],
+              "env": {
+                "AIRWEAVE_API_KEY": "your-api-key",
+                "AIRWEAVE_COLLECTION": "your-collection-id"
+              }
+            }
+          }
+        }
+        ```
+
+        <Success>
+          Access via **Command+L** (Mac) or **Ctrl+L** (Windows). The Composer Agent will automatically use Airweave for search queries.
+        </Success>
+      </Tab>
+
+      <Tab title="Claude Desktop">
+        Add this to your Claude Desktop config file:
+
+        **macOS/Linux**: `~/.claude/claude_desktop_config.json`
+        **Windows**: `%APPDATA%\claude\claude_desktop_config.json`
+
+        ```json title="Claude Desktop Configuration"
+        {
+          "mcpServers": {
+            "airweave-search": {
+              "command": "npx",
+              "args": ["-y", "airweave-mcp-search"],
+              "env": {
+                "AIRWEAVE_API_KEY": "your-api-key",
+                "AIRWEAVE_COLLECTION": "your-collection-id"
+              }
+            }
+          }
+        }
+        ```
+
+        <Success>
+          Restart Claude Desktop and the search tools will be available automatically.
+        </Success>
+      </Tab>
+
+      <Tab title="VS Code">
+        Add to your User Settings (JSON) via **Ctrl+Shift+P** → **"Preferences: Open User Settings (JSON)"**:
+
+        ```text title="VS Code Configuration"
+        {
+          "mcp": {
+            "inputs": [
+              {
+                "type": "promptString",
+                "id": "airweaveApiKey",
+                "description": "Airweave API Key",
+                "password": true
+              },
+              {
+                "type": "promptString",
+                "id": "airweaveCollection",
+                "description": "Airweave Collection ID"
+              }
+            ],
+            "servers": {
+              "airweave": {
+                "command": "npx",
+                "args": ["-y", "airweave-mcp-search"],
+                "env": {
+                  "AIRWEAVE_API_KEY": "${input:airweaveApiKey}",
+                  "AIRWEAVE_COLLECTION": "${input:airweaveCollection}"
+                }
+              }
+            }
+          }
+        }
+        ```
+
+        <Tip>
+          You can also add this to `.vscode/mcp.json` in your workspace to share with your team.
+        </Tip>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Start Searching">
+    Ask your AI assistant natural language questions about your data:
+    - *"What are our latest product features?"*
+    - *"Find customer feedback about pricing"*
+    - *"Show me API documentation"*
+
+    <Success>
+    That's it! Your AI agent can now search across all your connected data sources in the collection.
+    </Success>
+  </Step>
+</Steps>
+
+## Available Tools
+
+The MCP server provides two powerful search tools:
+
+### search
+
+**Natural language search** across your entire collection with optional AI-powered responses.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string (required) | Your search question |
+| `response_type` | string (optional) | `"RAW"` for search results or `"COMPLETION"` for AI analysis |
+
+### get-config
+
+**View current configuration** and connection status to verify everything is working correctly.
+
+No parameters required - shows your collection ID, API endpoint, and connection status.
+
+## Environment Variables
+
+<CardGroup cols={2}>
+  <Card title="Required" icon="fa-solid fa-exclamation-triangle">
+    **`AIRWEAVE_API_KEY`**
+    Your Airweave API key
+
+    **`AIRWEAVE_COLLECTION`**
+    Collection ID to search
+  </Card>
+
+  <Card title="Optional" icon="fa-solid fa-sliders">
+    **`AIRWEAVE_BASE_URL`**
+    Custom API endpoint
+
+    *Default: `https://api.airweave.ai`*
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Missing API key error">
+    - Check your API key is correctly set in the configuration
+    - Generate a new API key from your [Airweave dashboard](https://app.airweave.ai)
+    - Ensure the API key has access to your collection
+  </Accordion>
+
+  <Accordion title="Collection not found (404)">
+    - Verify the collection ID is correct (use the readable ID like `my-collection-abc123`)
+    - Check that the collection exists in your Airweave account
+    - Ensure you have access permissions for the collection
+  </Accordion>
+
+  <Accordion title="Connection refused">
+    - Check your internet connection
+    - For self-hosted instances, verify the server is running and `AIRWEAVE_BASE_URL` is correct
+    - Ensure firewall rules allow the connection
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card
+    title="Browse Connectors"
+    icon="fa-solid fa-plug"
+    href="/docs/connectors/asana"
+  >
+    Explore our 28+ pre-built data source connectors
+  </Card>
+  <Card
+    title="API Reference"
+    icon="fa-solid fa-code"
+    href="/api-concepts"
+  >
+    Dive deeper into the full Airweave API
+  </Card>
+  <Card
+    title="Get Support"
+    icon="fa-brands fa-discord"
+    href="https://discord.gg/484HY9Ehxt"
+  >
+    Join our community for help and discussions
+  </Card>
+</CardGroup>

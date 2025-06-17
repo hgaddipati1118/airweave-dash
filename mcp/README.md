@@ -21,6 +21,7 @@ npx airweave-mcp-search
 ```
 
 ### Installation from GitHub
+THIS IS NOT CORRECT, THE MCP IS NOT A SEPARATE REPO YET
 
 You can also install directly from the GitHub repository:
 

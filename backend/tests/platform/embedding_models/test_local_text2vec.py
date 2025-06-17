@@ -11,25 +11,6 @@ from airweave.platform.embedding_models.local_text2vec import LocalText2Vec
 class TestLocalText2Vec:
     """Tests for the LocalText2Vec embedding model."""
 
-    @pytest.fixture
-    def model_class(self):
-        """Return the LocalText2Vec class."""
-        return LocalText2Vec
-
-    @pytest.fixture
-    def model_kwargs(self):
-        """Return kwargs for model initialization."""
-        # Get the inference URL from the environment variable
-        inference_url = settings.TEXT2VEC_INFERENCE_URL
-        if not inference_url:
-            raise ValueError("TEXT2VEC_INFERENCE_URL environment variable is not set")
-        return {"inference_url": inference_url}
-
-    @pytest.fixture
-    def model(self, model_class, model_kwargs):
-        """Create and return a model instance."""
-        return model_class(**model_kwargs)
-
     @pytest.mark.asyncio
     async def test_embed_empty_text(self, model):
         """Test embedding an empty string returns zero vector."""

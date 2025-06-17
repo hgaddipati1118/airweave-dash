@@ -5,7 +5,6 @@ This module contains fixtures that can be used across all types of tests:
 - Integration tests
 - End-to-end tests
 """
-
 import asyncio
 import os
 from typing import AsyncGenerator, Generator
@@ -13,6 +12,7 @@ from typing import AsyncGenerator, Generator
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool  # Add this import
 
 from airweave.models._base import Base
 
@@ -26,15 +26,6 @@ from tests.fixtures.common import (  # noqa
     mock_sync_job,
     mock_user,
 )
-
-
-# This fixture is needed for pytest-asyncio
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 # Mock DB Session for Unit Tests
@@ -53,7 +44,7 @@ def skip_if_no_db():
     """Skip tests that require a database if connection is not available."""
     # Use a test database URL, trying the environment first, then fallback to localhost
     test_db_url = os.environ.get(
-        "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/airweave"
+        "TEST_DATABASE_URL", "postgresql://airweave:airweave1234!@localhost:5432/airweave"
     )
 
     # Parse the URL to get the connection details
@@ -69,10 +60,6 @@ def skip_if_no_db():
     port = int(host_port[1]) if len(host_port) > 1 else 5432
 
     try:
-        # Try to connect using asyncpg
-        # Connection string kept for reference
-        # conn_str = f"postgres://{user}:{password}@{host}:{port}/{db_name}"
-
         # For simplicity, use a simple sync check rather than async in this fixture
         import psycopg2
 
@@ -85,16 +72,16 @@ def skip_if_no_db():
 
 
 # Test Database Connection for Integration Tests
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def db_engine(skip_if_no_db):
-    """Create a test database engine."""
-    # For local development this could connect to a real database
-    # For CI, this would typically connect to a service container
+    """Create a test database engine for each test function."""
     test_db_url = os.environ.get(
-        "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
+        "TEST_DATABASE_URL", "postgresql+asyncpg://airweave:airweave1234!@localhost:5432/airweave"
     )
 
-    engine = create_async_engine(test_db_url, echo=True)
+    engine = create_async_engine(test_db_url, echo=True, poolclass=StaticPool, connect_args={
+        "server_settings": {"jit": "off"}
+    })
 
     # Create all tables
     async with engine.begin() as conn:
@@ -102,7 +89,7 @@ async def db_engine(skip_if_no_db):
 
     yield engine
 
-    # Drop all tables after tests
+    # Drop all tables after each test
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -113,14 +100,8 @@ async def db_engine(skip_if_no_db):
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create a new database session for integration tests.
 
-    This fixture uses transaction rollback to isolate tests.
+    Each test gets a fresh session with complete cleanup.
     """
-    async_session = sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with async_session() as session:
-        # Start a nested transaction
-        async with session.begin():
-            # Use the session for the test
-            yield session
-            # Rollback the transaction after the test
-            await session.rollback()
+    async with AsyncSession(db_engine, expire_on_commit=False) as session:
+        yield session
+        # The context manager automatically handles cleanup

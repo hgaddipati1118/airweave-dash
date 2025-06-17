@@ -1,0 +1,470 @@
+---
+title: "Add New Sources"
+subtitle: "Create custom connectors for any data source in minutes"
+slug: add-new-source
+description: "Learn how to easily add custom source connectors to Airweave's open-source platform. Perfect for connecting proprietary systems or unsupported apps."
+---
+
+Missing a connector for your favorite app or internal system? No problem! Airweave's open-source architecture makes adding new sources straightforward - usually taking just a few minutes to get up and running.
+
+<Info title="🚀 Coming Soon: Connector SDK">
+  We're building a standalone **Airweave CLI + Connector SDK** that will make this even easier. For now, you'll need to fork our repository, but the process is simple and well-documented.
+</Info>
+
+## Why Add Custom Sources?
+
+<CardGroup cols={3}>
+  <Card title="Proprietary Systems" icon="fa-solid fa-building">
+    Connect your internal databases, APIs, and custom applications to Airweave
+  </Card>
+  <Card title="Unsupported Apps" icon="fa-solid fa-puzzle-piece">
+    Add connectors for apps we don't support yet - and contribute back to the community
+  </Card>
+  <Card title="Specialized Workflows" icon="fa-solid fa-cogs">
+    Create custom data processing and transformation logic for your specific needs
+  </Card>
+</CardGroup>
+
+## Step-by-Step Implementation
+
+Here's how to build a complete source connector, using the Studio Ghibli API as our example:
+
+<Steps>
+  <Step title="Fork the Repository">
+    **Get the code** and set up your development environment.
+
+    <Card
+      title="⭐ Fork Airweave on GitHub"
+      icon="fa-brands fa-github"
+      href="https://github.com/airweave-ai/airweave/fork"
+    >
+      **2.5k+ stars** - Join our growing open-source community
+      Fork the repository to start adding your custom connector
+    </Card>
+
+    <CodeBlock title="Clone and setup">
+    ```bash
+    # Clone your fork
+    git clone https://github.com/YOUR_USERNAME/airweave.git
+    cd airweave
+
+    # Start the development environment
+    ./start.sh
+    ```
+    </CodeBlock>
+  </Step>
+
+  <Step title="Create Authentication Schema">
+    **Define what credentials your source needs** in `backend/airweave/platform/configs/auth.py`.
+
+    <Tabs>
+      <Tab title="Ghibli Example">
+        <CodeBlock title="configs/auth.py">
+        ```python
+        # Add to backend/airweave/platform/configs/auth.py
+
+        class GhibliAuthConfig(AuthConfig):
+            """Studio Ghibli authentication credentials schema."""
+
+            # No authentication needed for this public API
+            pass
+        ```
+        </CodeBlock>
+      </Tab>
+
+      <Tab title="Other Auth Types">
+        <CodeBlock title="Authentication examples">
+        ```python
+        # For API key authentication
+        class YourSourceAuthConfig(AuthConfig):
+            api_key: str = Field(
+                title="API Key",
+                description="The API key for your service"
+            )
+
+        # For OAuth2 authentication
+        class YourSourceAuthConfig(AuthConfig):
+            access_token: str = Field(
+                title="Access Token",
+                description="OAuth access token"
+            )
+            refresh_token: str = Field(
+                title="Refresh Token",
+                description="OAuth refresh token"
+            )
+
+        # For database connections
+        class YourSourceAuthConfig(AuthConfig):
+            host: str = Field(title="Host", description="Database host")
+            port: int = Field(title="Port", description="Database port")
+            username: str = Field(title="Username", description="Database username")
+            password: str = Field(title="Password", description="Database password")
+            database: str = Field(title="Database", description="Database name")
+        ```
+        </CodeBlock>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Create Source Configuration">
+    **Define optional configuration options** in `backend/airweave/platform/configs/config.py`.
+
+    <Tabs>
+      <Tab title="Ghibli Example">
+        <CodeBlock title="configs/config.py">
+        ```python
+        # Add to backend/airweave/platform/configs/config.py
+
+        class GhibliConfig(SourceConfig):
+            """Studio Ghibli configuration schema."""
+
+            include_rt_scores: bool = Field(
+                default=True,
+                title="Include RT Scores",
+                description="Whether to include Rotten Tomatoes scores in the metadata"
+            )
+        ```
+        </CodeBlock>
+      </Tab>
+
+      <Tab title="Common Patterns">
+        <CodeBlock title="Configuration examples">
+        ```python
+        # Simple configuration (no options)
+        class YourSourceConfig(SourceConfig):
+            pass
+
+        # Configuration with common options
+        class YourSourceConfig(SourceConfig):
+            exclude_patterns: List[str] = Field(
+                default=[],
+                title="Exclude Patterns",
+                description="Patterns to exclude from sync"
+            )
+
+            branch: str = Field(
+                default="main",
+                title="Branch",
+                description="Git branch to sync"
+            )
+
+            include_archived: bool = Field(
+                default=False,
+                title="Include Archived",
+                description="Whether to include archived items"
+            )
+        ```
+        </CodeBlock>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Define Entity Schemas">
+    **Create entity schemas** in `backend/airweave/platform/entities/your_source.py` that define the structure of your data.
+
+    <Tabs>
+      <Tab title="Ghibli Example">
+        <CodeBlock title="entities/ghibli.py">
+        ```python
+        # Create backend/airweave/platform/entities/ghibli.py
+
+        from datetime import datetime
+        from typing import List, Optional
+
+        from pydantic import Field
+
+        from airweave.platform.entities._base import ChunkEntity
+
+        class GhibliFilmEntity(ChunkEntity):
+            """Schema for a Studio Ghibli film."""
+
+            film_id: str = Field(..., description="Unique ID of the film")
+            title: str = Field(..., description="Title of the film")
+            original_title: str = Field(..., description="Original Japanese title")
+            director: str = Field(..., description="Director of the film")
+            producer: str = Field(..., description="Producer of the film")
+            release_date: str = Field(..., description="Release date")
+            running_time: str = Field(..., description="Running time in minutes")
+            rt_score: Optional[str] = Field(None, description="Rotten Tomatoes score")
+            people: List[str] = Field(default_factory=list, description="Characters in the film")
+            species: List[str] = Field(default_factory=list, description="Species in the film")
+            locations: List[str] = Field(default_factory=list, description="Locations in the film")
+            vehicles: List[str] = Field(default_factory=list, description="Vehicles in the film")
+        ```
+        </CodeBlock>
+      </Tab>
+
+      <Tab title="Common Patterns">
+        <CodeBlock title="Entity schema examples">
+        ```python
+        # Create backend/airweave/platform/entities/your_source.py
+
+        from datetime import datetime
+        from typing import List, Optional, Dict, Any
+
+        from pydantic import Field
+
+        from airweave.platform.entities._base import ChunkEntity, FileEntity
+
+        class YourSourceDocumentEntity(ChunkEntity):
+            """Schema for documents from your source."""
+
+            document_id: str = Field(..., description="Unique ID of the document")
+            title: str = Field(..., description="Title of the document")
+            author: str = Field(..., description="Author of the document")
+            created_at: Optional[datetime] = Field(None, description="When document was created")
+            tags: List[str] = Field(default_factory=list, description="Document tags")
+            # content field is inherited from ChunkEntity
+
+        class YourSourceUserEntity(ChunkEntity):
+            """Schema for users from your source."""
+
+            user_id: str = Field(..., description="Unique ID of the user")
+            name: str = Field(..., description="User's name")
+            email: Optional[str] = Field(None, description="User's email")
+            role: Optional[str] = Field(None, description="User's role")
+
+        class YourSourceFileEntity(FileEntity):
+            """Schema for files from your source."""
+
+            # Inherits file_id, name, mime_type, etc. from FileEntity
+            folder_path: Optional[str] = Field(None, description="Path to containing folder")
+            shared: bool = Field(default=False, description="Whether file is shared")
+        ```
+        </CodeBlock>
+      </Tab>
+    </Tabs>
+
+    **Key points about entities:**
+    - Inherit from `ChunkEntity` for searchable content (documents, posts, issues)
+    - Inherit from `FileEntity` for downloadable files (PDFs, images, attachments)
+    - Use `Field(...)` for required fields, `Field(default=...)` for optional ones
+    - Add source-specific fields that are relevant for search and metadata
+  </Step>
+
+  <Step title="Implement Your Source">
+    **Create your source connector** in `backend/airweave/platform/sources/your_source.py`.
+
+    <Tabs>
+      <Tab title="Ghibli Example">
+        <CodeBlock title="sources/ghibli.py">
+        ```python
+        # Create backend/airweave/platform/sources/ghibli.py
+
+        from typing import AsyncGenerator, Optional, Dict, Any
+        import httpx
+
+        from airweave.platform.entities.ghibli import GhibliFilmEntity
+        from airweave.platform.decorators import source
+        from airweave.platform.sources._base import BaseSource
+        from airweave.platform.auth.schemas import AuthType
+
+        @source(
+            name="Studio Ghibli",
+            short_name="ghibli",
+            auth_type=AuthType.none,
+            auth_config_class="GhibliAuthConfig",
+            config_class="GhibliConfig",
+            labels=["Entertainment", "API"]
+        )
+        class GhibliSource(BaseSource):
+            """Studio Ghibli source implementation."""
+
+            @classmethod
+            async def create(
+                cls,
+                credentials=None,
+                config: Optional[Dict[str, Any]] = None
+            ) -> "GhibliSource":
+                """Create a new Ghibli source instance."""
+                instance = cls()
+                instance.config = config or {}
+                return instance
+
+            async def generate_entities(self) -> AsyncGenerator[GhibliFilmEntity, None]:
+                """Generate entities from the Ghibli API."""
+                async with httpx.AsyncClient() as client:
+                    response = await client.get("https://ghibli.rest/films")
+                    response.raise_for_status()
+                    films = response.json()
+
+                    for film in films:
+                        yield GhibliFilmEntity(
+                            entity_id=film["id"],
+                            film_id=film["id"],
+                            title=film["title"],
+                            original_title=film["original_title"],
+                            content=film["description"],  # Required by ChunkEntity
+                            director=film["director"],
+                            producer=film["producer"],
+                            release_date=film["release_date"],
+                            running_time=film["running_time"],
+                            rt_score=film["rt_score"] if self.config.get("include_rt_scores", True) else None,
+                            people=film.get("people", []),
+                            species=film.get("species", []),
+                            locations=film.get("locations", []),
+                            vehicles=film.get("vehicles", [])
+                        )
+        ```
+        </CodeBlock>
+      </Tab>
+
+      <Tab title="Generic Template">
+        <CodeBlock title="Source implementation template">
+        ```python
+        from typing import AsyncGenerator, Optional, Dict, Any
+
+        from airweave.platform.entities.your_source import (
+            YourSourceDocumentEntity,
+            YourSourceUserEntity,
+            YourSourceFileEntity
+        )
+        from airweave.platform.decorators import source
+        from airweave.platform.sources._base import BaseSource
+        from airweave.platform.auth.schemas import AuthType
+
+        @source(
+            name="Your Source Display Name",
+            short_name="your_source",
+            auth_type=AuthType.api_key,  # Choose appropriate auth type
+            auth_config_class="YourSourceAuthConfig",
+            config_class="YourSourceConfig",
+            labels=["Category", "Type"]
+        )
+        class YourSource(BaseSource):
+            """Your source implementation."""
+
+            @classmethod
+            async def create(
+                cls,
+                credentials=None,
+                config: Optional[Dict[str, Any]] = None
+            ) -> "YourSource":
+                """Create a new source instance."""
+                instance = cls()
+
+                # Store credentials (structure depends on auth type)
+                if credentials:
+                    instance.api_key = credentials.api_key  # for API key auth
+                    # instance.access_token = credentials.access_token  # for OAuth2
+
+                instance.config = config or {}
+                return instance
+
+            async def generate_entities(self) -> AsyncGenerator[YourSourceDocumentEntity, None]:
+                """Generate entities from your data source."""
+                # Your data extraction logic here
+
+                async with httpx.AsyncClient() as client:
+                    headers = {"Authorization": f"Bearer {self.api_key}"}
+                    response = await client.get("https://api.example.com/documents", headers=headers)
+                    documents = response.json()
+
+                    for doc in documents:
+                        yield YourSourceDocumentEntity(
+                            entity_id=doc["id"],
+                            document_id=doc["id"],
+                            title=doc["title"],
+                            content=doc["content"],  # Required by ChunkEntity
+                            author=doc["author"],
+                            created_at=doc.get("created_at"),
+                            tags=doc.get("tags", [])
+                        )
+        ```
+        </CodeBlock>
+      </Tab>
+    </Tabs>
+
+    **Key implementation points:**
+    - Import your custom entity classes
+    - Use the `@source()` decorator with your auth and config classes
+    - Implement `create()` classmethod that handles credentials and config
+    - Implement `generate_entities()` that yields your custom entity objects
+    - Handle authentication based on your auth type
+    - Use config options to customize behavior
+  </Step>
+
+  <Step title="Test Your Connector">
+    **Verify everything works** by running Airweave and creating a test connection.
+
+    1. **Start Airweave**: Your connector appears automatically in the dashboard
+    2. **Create a collection** and add your new source
+    3. **Test the connection** and verify data syncs correctly
+    4. **Search your data** to confirm everything works end-to-end
+
+    <Success>
+      🎉 **Your custom source is live!** Users can now connect to your data source just like any built-in connector.
+    </Success>
+  </Step>
+</Steps>
+
+## Authentication Types
+
+<Warning title="Choose the Right Auth Type">
+  **Be careful about what kind of authentication your app uses.** Airweave supports many auth types including API keys, various OAuth2 flows, and database connections. Check your data source's API documentation to determine the correct `AuthType` to use in your `@source()` decorator.
+</Warning>
+
+<Note title="OAuth2 Setup">
+  For OAuth2 sources, you'll also need to add your integration to the `dev.integrations.yaml` file. [Reach out to us](mailto:support@airweave.ai) for guidance on the OAuth2 flow setup.
+</Note>
+
+## File Structure
+
+Your complete implementation will create files in these locations:
+
+<CodeBlock title="File structure">
+```
+backend/airweave/platform/
+├── configs/
+│   ├── auth.py              # Add YourSourceAuthConfig class
+│   └── config.py            # Add YourSourceConfig class
+├── entities/
+│   └── your_source.py       # Define entity schemas for your data
+└── sources/
+    └── your_source.py       # Your source implementation
+```
+</CodeBlock>
+
+## Real Examples
+
+Learn from existing connectors in our open-source repository:
+
+<CardGroup cols={2}>
+  <Card
+    title="🔗 Slack Connector"
+    icon="fa-brands fa-slack"
+    href="https://github.com/airweave-ai/airweave/blob/main/backend/airweave/platform/sources/slack.py"
+  >
+    **OAuth2 example** - See how to handle complex authentication and data extraction
+  </Card>
+  <Card
+    title="🗃️ PostgreSQL Connector"
+    icon="fa-solid fa-database"
+    href="https://github.com/airweave-ai/airweave/blob/main/backend/airweave/platform/sources/postgresql.py"
+  >
+    **Database example** - Learn how to connect to SQL databases and extract structured data
+  </Card>
+</CardGroup>
+
+## Contributing Back
+
+<Info title="🤝 Help the Community">
+  **Consider contributing your connector** back to the main repository! File a PR and help other users benefit from your work.
+</Info>
+
+<CardGroup cols={2}>
+  <Card
+    title="📋 Contribution Guidelines"
+    icon="fa-solid fa-code-pull-request"
+    href="https://github.com/airweave-ai/airweave/blob/main/CONTRIBUTING.md"
+  >
+    Follow our guidelines for contributing new connectors
+  </Card>
+  <Card
+    title="💬 Get Help"
+    icon="fa-brands fa-discord"
+    href="https://discord.gg/484HY9Ehxt"
+  >
+    Join our Discord for help building your connector
+  </Card>
+</CardGroup>

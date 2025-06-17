@@ -47,7 +47,21 @@ This connector retrieves hierarchical data from ClickUp's REST API:
 
 This connector uses **OAuth 2.0 authentication flow**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Clickup authentication credentials schema.
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Clickup app.
+</ParamField>
+</Card>
 
 
 ## Entities

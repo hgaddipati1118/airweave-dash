@@ -61,14 +61,11 @@ class TestQdrantDestinationInit:
             mock_settings.qdrant_url = "http://test-qdrant.com:6333"
 
             sync_id = uuid.uuid4()
-            destination = await QdrantDestination.create(sync_id=sync_id, vector_size=384)
+            destination = await QdrantDestination.create(collection_id=sync_id)
 
             # Validate initialization
-            assert destination.sync_id == sync_id
-            assert (
-                destination.collection_name
-                == f"Entities_{destination._sanitize_collection_name(sync_id)}"
-            )
+            assert destination.collection_id == sync_id
+            assert destination.collection_name == str(sync_id)
             assert destination.vector_size == 384
             assert destination.client is not None
 
@@ -99,7 +96,7 @@ class TestQdrantDestinationInit:
 
             # Create instance
             sync_id = uuid.uuid4()
-            destination = await QdrantDestination.create(sync_id=sync_id)
+            destination = await QdrantDestination.create(collection_id=sync_id)
 
             # Validate initialization with credentials
             assert destination.url == "https://test-qdrant.com"
@@ -273,14 +270,14 @@ class TestQdrantDestinationOperations:
 class TestQdrantDestinationUtilities:
     """Tests for QdrantDestination utility methods."""
 
-    def test_sanitize_collection_name(self):
-        """Test sanitizing collection name."""
-        # Create a UUID with hyphens
-        test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
-
-        # Sanitize
-        sanitized = QdrantDestination._sanitize_collection_name(test_uuid)
-
-        # Verify hyphens are replaced with underscores
-        assert sanitized == "12345678_1234_5678_1234_567812345678"
-        assert "-" not in sanitized
+    # def test_sanitize_collection_name(self):
+    #     """Test sanitizing collection name."""
+    #     # Create a UUID with hyphens
+    #     test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    #
+    #     # Sanitize
+    #     sanitized = QdrantDestination._sanitize_collection_name(test_uuid)
+    #
+    #     # Verify hyphens are replaced with underscores
+    #     assert sanitized == "12345678_1234_5678_1234_567812345678"
+    #     assert "-" not in sanitized

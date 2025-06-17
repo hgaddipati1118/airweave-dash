@@ -56,6 +56,7 @@ Thumbs.db
 .coverage
 htmlcov/
 .env.local
+local_storage/
 
 .DS_Store
 __pycache__
@@ -70,3 +71,6 @@ backend/coverage.xml
 .coverage
 
 coverage.xml
+
+# Local storage folder
+local_storage/

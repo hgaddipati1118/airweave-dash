@@ -12,6 +12,8 @@
                 "127.0.0.1",
                 "--port",
                 "8001",
+                "--workers",
+                "4",
                 "airweave.main:app"
             ],
             "cwd": "${workspaceFolder}/backend",
@@ -37,7 +39,7 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/backend"
             },
-            "python": "${workspaceFolder}/backend/venv/bin/python3"
+            "python": "${command:python.interpreterPath}"
         },
         {
             "name": "Python: Current Script with CWD",
@@ -49,17 +51,18 @@
             "justMyCode": true
         },
         {
-            "name": "ARQ Worker",
+            "name": "Temporal Worker",
             "type": "debugpy",
             "request": "launch",
-            "module": "airweave.arq.runner",
+            "module": "airweave.platform.temporal.worker",
             "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/backend",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/backend"
             },
-            "justMyCode": false
+            "justMyCode": false,
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "name": "Debug React",
@@ -76,14 +79,12 @@
     ],
     "compounds": [
         {
-            "name": "FastAPI + ARQ Worker",
+            "name": "FastAPI + Temporal Worker",
             "configurations": [
                 "FastAPI",
-                "ARQ Worker"
+                "Temporal Worker"
             ],
             "stopAll": true,
-            "preLaunchTask": "start-docker-services",
-            "postDebugTask": "stop-docker-services"
         }
     ]
 }

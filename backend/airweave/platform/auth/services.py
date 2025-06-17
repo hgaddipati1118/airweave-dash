@@ -316,12 +316,15 @@ class OAuth2Service:
             payload["client_id"] = client_id
             payload["client_secret"] = client_secret
 
-        # Fixed logging statement that doesn't use short_name
+        # Log the request details for debugging
         oauth2_service_logger.info(
-            "Preparing token request: "
+            f"OAuth2 code exchange request - "
             f"URL: {integration_config.backend_url}, "
-            f"Headers: {headers}, "
-            f"Payload keys: {list(payload.keys())}"  # Log keys only for security
+            f"Redirect URI: {integration_config.backend_url}, "
+            f"Client ID: {client_id}, "
+            f"Code length: {len(refresh_token)}, "
+            f"Grant type: {payload['grant_type']}, "
+            f"Credential location: {integration_config.client_credential_location}"
         )
 
         return headers, payload
@@ -568,12 +571,30 @@ class OAuth2Service:
             payload["client_id"] = client_id
             payload["client_secret"] = client_secret
 
+        # Log the request details for debugging
+        oauth2_service_logger.info(
+            f"OAuth2 code exchange request - "
+            f"URL: {integration_config.backend_url}, "
+            f"Redirect URI: {redirect_uri}, "
+            f"Client ID: {client_id}, "
+            f"Code length: {len(code)}, "
+            f"Grant type: {integration_config.grant_type}, "
+            f"Credential location: {integration_config.client_credential_location}"
+        )
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     integration_config.backend_url, headers=headers, data=payload
                 )
                 response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            # Log the actual error response from the OAuth provider
+            oauth2_service_logger.error(
+                f"OAuth2 token exchange failed - Status: {e.response.status_code}, "
+                f"Response text: {e.response.text}"
+            )
+            raise HTTPException(status_code=400, detail=e.response.text) from e
         except Exception as e:
             oauth2_service_logger.error(f"Failed to exchange authorization code: {str(e)}")
             raise HTTPException(
@@ -648,7 +669,10 @@ class OAuth2Service:
         decrypted_credentials = (
             {"access_token": oauth2_response.access_token}
             if settings.auth_type == AuthType.oauth2
-            else {"refresh_token": oauth2_response.refresh_token}
+            else {
+                "refresh_token": oauth2_response.refresh_token,
+                "access_token": oauth2_response.access_token,
+            }
         )
 
         encrypted_credentials = credentials.encrypt(decrypted_credentials)

@@ -14,10 +14,12 @@ class ConnectionStatus(str, Enum):
 class SyncJobStatus(str, Enum):
     """Sync job status enum."""
 
+    CREATED = "created"
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class IntegrationType(str, Enum):

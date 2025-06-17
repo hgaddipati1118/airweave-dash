@@ -273,7 +273,10 @@ async def list_white_label_source_connections(
         db, white_label_id=white_label_id, current_user=current_user
     )
 
-    return [schemas.SourceConnectionListItem.model_validate(sc) for sc in source_connections]
+    return [
+        schemas.SourceConnectionListItem.model_validate(sc, from_attributes=True)
+        for sc in source_connections
+    ]
 
 
 @router.api_route(
@@ -339,6 +342,7 @@ async def exchange_white_label_oauth2_code(
                 short_name=white_label.source_short_name,
                 sync_immediately=True,
                 white_label_id=white_label_id,
+                credential_id=connection.integration_credential_id,
             )
         else:
             # Ensure white_label_id and short_name are set correctly
@@ -347,13 +351,9 @@ async def exchange_white_label_oauth2_code(
                 source_connection_in.short_name = white_label.source_short_name
 
         # Create the source connection with the connection ID
-        (
-            source_connection,
-            sync_job,
-        ) = await source_connection_service.create_source_connection_from_oauth(
+        source_connection, sync_job = await source_connection_service.create_source_connection(
             db=db,
             source_connection_in=source_connection_in,
-            connection_id=connection.id,
             current_user=user,
         )
 
@@ -386,4 +386,7 @@ async def exchange_white_label_oauth2_code(
 
     except Exception as e:
         logger.error(f"Failed to exchange OAuth2 code for WhiteLabel {white_label.id}: {e}")
-        raise HTTPException(status_code=400, detail="Failed to exchange OAuth2 code.") from e
+        # Pass through the detailed error message if it's an HTTPException
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=str(e)) from e

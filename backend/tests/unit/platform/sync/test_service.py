@@ -19,6 +19,18 @@ def mock_uow():
     return mock
 
 
+@pytest.fixture
+def mock_collection():
+    """Create a mock collection."""
+    return MagicMock(spec=schemas.Collection)
+
+
+@pytest.fixture
+def mock_source_connection():
+    """Create a mock source connection."""
+    return MagicMock(spec=schemas.Connection)
+
+
 class TestSyncServiceCreate:
     """Tests for the SyncService.create method."""
 
@@ -78,49 +90,55 @@ class TestSyncServiceRun:
     """Tests for the SyncService.run method."""
 
     @pytest.mark.asyncio
-    async def test_run_success(self, mock_sync, mock_sync_job, mock_sync_dag, mock_user):
+    async def test_run_success(self, mock_sync, mock_sync_job, mock_sync_dag, mock_user, mock_collection, mock_source_connection):
         """Test successful sync run."""
         # Arrange
         mock_db_context = AsyncMock()
         mock_db = AsyncMock(spec=AsyncSession)
         mock_db_context.__aenter__.return_value = mock_db
 
-        mock_sync_context = MagicMock()
+        mock_orchestrator = AsyncMock()
         mock_sync_result = MagicMock(spec=schemas.Sync)
+        mock_orchestrator.run.return_value = mock_sync_result
 
         # Mock get_db_context
         with patch("airweave.core.sync_service.get_db_context") as mock_get_db_context:
             mock_get_db_context.return_value = mock_db_context
 
-            # Mock SyncContextFactory.create
+            # Mock SyncFactory.create_orchestrator
             with patch(
-                "airweave.core.sync_service.SyncContextFactory.create"
-            ) as mock_create_context:
-                mock_create_context.return_value = mock_sync_context
+                "airweave.core.sync_service.SyncFactory.create_orchestrator"
+            ) as mock_create_orchestrator:
+                mock_create_orchestrator.return_value = mock_orchestrator
 
-                # Mock sync_orchestrator.run
-                with patch("airweave.core.sync_service.sync_orchestrator.run") as mock_run:
-                    mock_run.return_value = mock_sync_result
+                # Act
+                service = SyncService()
+                result = await service.run(
+                    sync=mock_sync,
+                    sync_job=mock_sync_job,
+                    dag=mock_sync_dag,
+                    collection=mock_collection,
+                    source_connection=mock_source_connection,
+                    current_user=mock_user,
+                )
 
-                    # Act
-                    service = SyncService()
-                    result = await service.run(
-                        sync=mock_sync,
-                        sync_job=mock_sync_job,
-                        dag=mock_sync_dag,
-                        current_user=mock_user,
-                    )
-
-                    # Assert
-                    mock_get_db_context.assert_called_once()
-                    mock_create_context.assert_called_once_with(
-                        mock_db, mock_sync, mock_sync_job, mock_sync_dag, mock_user
-                    )
-                    mock_run.assert_called_once_with(mock_sync_context)
-                    assert result == mock_sync_result
+                # Assert
+                mock_get_db_context.assert_called_once()
+                mock_create_orchestrator.assert_called_once_with(
+                    db=mock_db,
+                    sync=mock_sync,
+                    sync_job=mock_sync_job,
+                    dag=mock_sync_dag,
+                    collection=mock_collection,
+                    source_connection=mock_source_connection,
+                    current_user=mock_user,
+                    access_token=None,
+                )
+                mock_orchestrator.run.assert_called_once()
+                assert result == mock_sync_result
 
     @pytest.mark.asyncio
-    async def test_run_error_handling(self, mock_sync, mock_sync_job, mock_sync_dag, mock_user):
+    async def test_run_error_handling(self, mock_sync, mock_sync_job, mock_sync_dag, mock_user, mock_collection, mock_source_connection):
         """Test error handling during sync run."""
         # Arrange
         mock_db_context = AsyncMock()
@@ -132,11 +150,11 @@ class TestSyncServiceRun:
         with patch("airweave.core.sync_service.get_db_context") as mock_get_db_context:
             mock_get_db_context.return_value = mock_db_context
 
-            # Mock SyncContextFactory.create to raise an exception
+            # Mock SyncFactory.create_orchestrator to raise an exception
             with patch(
-                "airweave.core.sync_service.SyncContextFactory.create"
-            ) as mock_create_context:
-                mock_create_context.side_effect = test_error
+                "airweave.core.sync_service.SyncFactory.create_orchestrator"
+            ) as mock_create_orchestrator:
+                mock_create_orchestrator.side_effect = test_error
 
                 # Mock logger.error
                 with patch("airweave.core.sync_service.logger.error") as mock_logger_error:
@@ -149,6 +167,8 @@ class TestSyncServiceRun:
                                 sync=mock_sync,
                                 sync_job=mock_sync_job,
                                 dag=mock_sync_dag,
+                                collection=mock_collection,
+                                source_connection=mock_source_connection,
                                 current_user=mock_user,
                             )
 

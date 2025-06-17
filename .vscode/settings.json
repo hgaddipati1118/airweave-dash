@@ -5,9 +5,11 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "python.testing.cwd": "${workspaceFolder}/backend",
-    "python.analysis.extraPaths": ["${workspaceFolder}/backend"],
-    "python.defaultInterpreterPath": "${workspaceFolder}/backend/venv/bin/python3",
-    "python.testing.pytestPath": "${workspaceFolder}/backend/venv/bin/pytest",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/backend"
+    ],
+    "python.defaultInterpreterPath": "${command:python.interpreterPath}",
+    "python.testing.pytestPath": "${command:python.interpreterPath}",
     "python.testing.autoTestDiscoverOnSaveEnabled": true,
     "python.debugOptions": [
         "RedirectOutput",
@@ -18,14 +20,16 @@
     "black-formatter.args": [
         "--line-length",
         "100"
-        ],
+    ],
     "editor.codeActionsOnSave": {
         "source.fixAll.ruff": "always",
         "source.fixAll.eslint": "always",
         "source.formatAll.ruff": "always",
     },
     "editor.formatOnSave": true,
-    "ruff.format.args": ["--extend-exclude=fern/**"],
+    "ruff.format.args": [
+        "--extend-exclude=fern/**"
+    ],
     "[mdx]": {
         "editor.formatOnSave": false,
         "editor.formatOnPaste": false,
@@ -40,5 +44,5 @@
     },
     "files.watcherExclude": {
         "**/fern/**": true
-    }
+    },
 }

@@ -29,7 +29,8 @@ async def test_create_and_get_source(db_session: AsyncSession, skip_if_no_db):
         short_name=f"test_source_{unique_id}",
         class_name="TestSourceConnector",
         auth_type=None,
-        auth_config_class=None,
+        auth_config_class="TestAuthConfig",
+        config_class="TestConfig",
         description="A test source for integration testing",
         organization_id=None,
         output_entity_definition_ids=[],
@@ -84,7 +85,8 @@ async def test_update_source(db_session: AsyncSession, skip_if_no_db):
         short_name=f"update_source_{unique_id}",
         class_name="TestSourceConnector",
         auth_type=None,
-        auth_config_class=None,
+        auth_config_class="TestAuthConfig",
+        config_class="TestConfig",
         description="A source that will be updated",
         organization_id=None,
         output_entity_definition_ids=[],
@@ -97,10 +99,11 @@ async def test_update_source(db_session: AsyncSession, skip_if_no_db):
         # Create update data
         update_data = SourceUpdate(
             name="Updated Source Name",
-            short_name=created_source.short_name,  # Keep the same short_name
+            short_name=created_source.short_name,
             class_name=created_source.class_name,
             auth_type=None,
-            auth_config_class=None,
+            auth_config_class="UpdatedTestAuthConfig",
+            config_class="UpdatedTestConfig",
             description="This source has been updated",
             organization_id=None,
             output_entity_definition_ids=[],
@@ -117,7 +120,7 @@ async def test_update_source(db_session: AsyncSession, skip_if_no_db):
         assert updated_source.id == created_source.id
         assert updated_source.name == update_data.name
         assert updated_source.description == update_data.description
-        assert updated_source.short_name == created_source.short_name  # Unchanged
+        assert updated_source.short_name == created_source.short_name
 
         # Verify the update in the database
         retrieved_source = await crud_source.get(db=db_session, id=created_source.id)
@@ -143,7 +146,8 @@ async def test_delete_source(db_session: AsyncSession, skip_if_no_db):
         short_name=f"delete_source_{unique_id}",
         class_name="TestSourceConnector",
         auth_type=None,
-        auth_config_class=None,
+        auth_config_class="TestAuthConfig",
+        config_class="TestConfig",
         description="A source that will be deleted",
         organization_id=None,
         output_entity_definition_ids=[],
@@ -188,7 +192,8 @@ async def test_get_all_sources(db_session: AsyncSession, skip_if_no_db):
                 short_name=f"test_source_{i}_{unique_id}",
                 class_name="TestSourceConnector",
                 auth_type=None,
-                auth_config_class=None,
+                auth_config_class="TestAuthConfig",
+                config_class="TestConfig",
                 description=f"Test source {i} for get_all test",
                 organization_id=None,
                 output_entity_definition_ids=[],
@@ -202,7 +207,7 @@ async def test_get_all_sources(db_session: AsyncSession, skip_if_no_db):
         all_sources = await crud_source.get_all(db=db_session)
 
         # Assert
-        assert len(all_sources) >= sources_to_create  # There may be existing sources
+        assert len(all_sources) >= sources_to_create
 
         # Check if our created sources are in the result
         created_sources_found = 0
@@ -213,10 +218,10 @@ async def test_get_all_sources(db_session: AsyncSession, skip_if_no_db):
         assert created_sources_found == sources_to_create
 
         # Act - Test pagination (skip 2, limit 2)
-        paginated_sources = await crud_source.get_all(db=db_session, skip=2, limit=2)
+        paginated_sources = await crud_source.get_all(db=db_session, skip=2, limit=2, disable_limit=False)
 
         # Assert
-        assert len(paginated_sources) <= 2  # Should have at most 2 sources
+        assert len(paginated_sources) <= 2
 
     except Exception as e:
         logger.error(f"Test failed: {e}")

@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Python dependencies
         working-directory: ./backend
-        run: poetry install --no-root
+        run: poetry install
 
       - name: Install documentation dependencies
         run: pip install pyyaml

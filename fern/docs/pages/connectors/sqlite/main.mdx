@@ -45,7 +45,65 @@ It uses database introspection to:
 
 This connector uses a custom authentication configuration class: `SQLiteAuthConfig`.
 
-Please refer to the Airweave documentation for authentication details.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+SQLite authentication configuration.
+<ParamField
+  path="host"
+  type="str"
+  required={true}
+>
+  The host of the SQLite database
+</ParamField>
+<ParamField
+  path="port"
+  type="int"
+  required={true}
+>
+  The port of the SQLite database
+</ParamField>
+<ParamField
+  path="database"
+  type="str"
+  required={true}
+>
+  The name of the SQLite database
+</ParamField>
+<ParamField
+  path="user"
+  type="str"
+  required={true}
+>
+  The username for the SQLite database
+</ParamField>
+<ParamField
+  path="password"
+  type="str"
+  required={true}
+>
+  The password for the SQLite database
+</ParamField>
+<ParamField
+  path="schema"
+  type="str"
+  required={false}
+  default="public"
+>
+  The schema of the SQLite database
+</ParamField>
+<ParamField
+  path="tables"
+  type="str"
+  required={false}
+  default="*"
+>
+  Comma separated list of tables to sync. For example, 'users,orders'. For all tables, use '*'
+</ParamField>
+</Card>
 
 
 

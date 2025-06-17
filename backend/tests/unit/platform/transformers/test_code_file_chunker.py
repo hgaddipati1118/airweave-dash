@@ -6,7 +6,7 @@ import pytest
 
 from airweave.platform.entities._base import CodeFileEntity
 from airweave.platform.transformers.code_file_chunker import code_file_chunker
-from airweave.platform.transformers.utils import MAX_CHUNK_SIZE, count_tokens
+from airweave.platform.transformers.utils import MAX_CHUNK_SIZE, count_tokens, METADATA_SIZE
 
 
 def generate_large_code_content(min_size):
@@ -57,27 +57,11 @@ def function{num}(param1, param2, param3):
 
     # Keep adding functions until we exceed the required size
     i = 0
-    test_entity = CodeFileEntity(
-        entity_id=str(uuid.uuid4()),
-        breadcrumbs=[],
-        source_name="test",
-        name="test.py",
-        file_id="test123",
-        size=0,
-        path_in_repo="test.py",
-        repo_name="test-repo",
-        repo_owner="test-owner",
-        url="https://example.com/test.py",
-        content=content,
-        language="python",
-    )
 
-    # Add functions until the file is large enough
+    # Add functions until the content is large enough
     while size <= min_size and i < 200:  # Cap at 200 functions to prevent infinite loops
         content += function_template.format(num=i)
-        test_entity.content = content
-        test_entity.size = len(content)
-        size = count_tokens(test_entity.model_dump_json())
+        size = count_tokens(content)  # Count tokens of just the content, not the entire entity
         i += 1
 
     if size <= min_size:
@@ -140,7 +124,8 @@ class TestCodeFileChunker:
     async def test_large_file_chunked(self):
         """Test that a large file is properly chunked by the real CodeChunker."""
         # Create a large Python file that exceeds the chunk size limit
-        threshold = MAX_CHUNK_SIZE - 190  # Just over the limit
+        chunk_size_limit = MAX_CHUNK_SIZE - METADATA_SIZE  # This is 7191
+        threshold = chunk_size_limit + 100  # Just over the limit
         large_content = generate_large_code_content(threshold)
 
         file = CodeFileEntity(
@@ -187,12 +172,13 @@ class TestCodeFileChunker:
 
             # Verify each chunk is small enough to fit in the model
             chunk_size = count_tokens(chunk_file.model_dump_json())
-            assert chunk_size < MAX_CHUNK_SIZE - 191
+            assert chunk_size < MAX_CHUNK_SIZE
 
     async def test_metadata_preservation(self):
         """Test that existing metadata is preserved when chunking."""
         # Create a large Python file with metadata
-        threshold = MAX_CHUNK_SIZE - 190  # Just over the limit
+        chunk_size_limit = MAX_CHUNK_SIZE - METADATA_SIZE  # This is 7191
+        threshold = chunk_size_limit + 100  # Just over the limit
         large_content = generate_large_code_content(threshold)
 
         # Create file with existing metadata

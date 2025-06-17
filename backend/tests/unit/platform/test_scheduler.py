@@ -521,6 +521,28 @@ class TestTriggerSync:
         scheduler = PlatformScheduler()
         mock_db = AsyncMock()
 
+        # Create mock source connection with proper field values for Pydantic validation
+        mock_source_connection = MagicMock()
+        mock_source_connection.id = uuid.uuid4()
+        mock_source_connection.name = "Test Source Connection"
+        mock_source_connection.short_name = "test_source"
+        mock_source_connection.readable_collection_id = "test-collection"
+        mock_source_connection.organization_id = uuid.uuid4()
+        mock_source_connection.created_at = datetime.now(timezone.utc)
+        mock_source_connection.modified_at = datetime.now(timezone.utc)
+        mock_source_connection.created_by_email = "test@example.com"
+        mock_source_connection.modified_by_email = "test@example.com"
+
+        # Create mock collection with proper field values for Pydantic validation
+        mock_collection = MagicMock()
+        mock_collection.id = uuid.uuid4()
+        mock_collection.readable_id = "test-collection"
+        mock_collection.name = "Test Collection"
+        mock_collection.organization_id = uuid.uuid4()
+        mock_collection.created_by_email = "test@example.com"
+        mock_collection.modified_by_email = "test@example.com"
+        mock_collection.status = "ACTIVE"
+
         # Mock crud operations
         with (
             patch("airweave.platform.scheduler.get_db_context") as mock_get_db,
@@ -538,6 +560,21 @@ class TestTriggerSync:
                 "airweave.platform.scheduler.crud.sync_dag.get_by_sync_id",
                 new_callable=AsyncMock,
                 return_value=mock_sync_dag,
+            ),
+            patch(
+                "airweave.platform.scheduler.crud.source_connection.get_by_sync_id",
+                new_callable=AsyncMock,
+                return_value=mock_source_connection,
+            ),
+            patch(
+                "airweave.platform.scheduler.crud.collection.get_by_readable_id",
+                new_callable=AsyncMock,
+                return_value=mock_collection,
+            ),
+            patch(
+                "airweave.platform.scheduler.temporal_service.is_temporal_enabled",
+                new_callable=AsyncMock,
+                return_value=False,
             ),
             patch("asyncio.create_task"),
             patch("airweave.platform.scheduler.sync_service.run"),

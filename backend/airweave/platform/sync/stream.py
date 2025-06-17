@@ -21,7 +21,7 @@ class AsyncSourceStream(Generic[T]):
     def __init__(
         self,
         source_generator: AsyncGenerator[T, None],
-        queue_size: int = 100,
+        queue_size: int = 1000,
         logger: Optional[logging.Logger] = None,
     ):
         """Initialize the async source stream.
@@ -57,6 +57,7 @@ class AsyncSourceStream(Generic[T]):
     async def _producer(self):
         """Producer task that fills the queue from the source generator."""
         try:
+            items_produced = 0
             async for item in self.source_generator:
                 if not self.is_running:
                     self.logger.info("Producer stopping early")
@@ -66,8 +67,16 @@ class AsyncSourceStream(Generic[T]):
                 # This is a blocking call, so consumer will wait until the queue has space
                 # Effectively, this is a backpressure mechanism.
                 await self.queue.put(item)
+                items_produced += 1
 
-            self.logger.info("Source generator exhausted")
+                # Log progress periodically
+                if items_produced % 50 == 0:
+                    self.logger.info(
+                        f"AsyncSourceStream producer progress: {items_produced} items queued, "
+                        f"queue size: {self.queue.qsize()}/{self.queue.maxsize}"
+                    )
+
+            self.logger.info(f"Source generator exhausted after producing {items_produced} items")
         except Exception as e:
             self.logger.error(f"Error in producer: {e}")
             self.producer_exception = e

@@ -1,7 +1,7 @@
 """Service for data synchronization."""
 
 from datetime import datetime
-from typing import AsyncGenerator, List, Optional, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -15,7 +15,6 @@ from airweave.core.sync_job_service import sync_job_service
 from airweave.db.session import get_db_context
 from airweave.db.unit_of_work import UnitOfWork
 from airweave.platform.sync.factory import SyncFactory
-from airweave.platform.sync.pubsub import sync_pubsub
 
 
 class SyncService:
@@ -456,31 +455,6 @@ class SyncService:
             db=db, id=sync_id, current_user=current_user, with_connections=True
         )
         return updated_sync
-
-    async def subscribe_to_sync_job(
-        self,
-        job_id: UUID,
-    ) -> AsyncGenerator[str, None]:
-        """Subscribe to a sync job's progress.
-
-        Args:
-        ----
-            job_id (UUID): The ID of the job to subscribe to.
-
-        Returns:
-        -------
-            AsyncGenerator[str, None]: The event stream.
-
-        Raises:
-        ------
-            HTTPException: If the job is not found or completed.
-        """
-        queue = await sync_pubsub.subscribe(job_id)
-
-        if not queue:
-            raise HTTPException(status_code=404, detail="Sync job not found or completed")
-
-        return queue
 
 
 sync_service = SyncService()

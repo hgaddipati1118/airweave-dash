@@ -1,0 +1,80 @@
+---
+title: "Ctti"
+description: "Ctti integration with Airweave"
+---
+
+{/* AUTO-GENERATED CONTENT START */}
+
+
+
+<div className="connector-header">
+  <img src="icon.svg" alt="Ctti logo" width="72" height="72" className="connector-icon" />
+  <div className="connector-info">
+    <h1>Ctti</h1>
+    <p>Connect your Ctti data to Airweave</p>
+  </div>
+</div>
+
+## Overview
+
+The Ctti connector allows you to sync data from Ctti into Airweave, making it available for search and retrieval by your agents.
+
+## Configuration
+
+
+### CTTISource
+
+CTTI source implementation.
+
+This source connects to the AACT Clinical Trials PostgreSQL database and queries
+the nct_id column from the studies table to create WebEntity instances with
+ClinicalTrials.gov URLs.
+
+Connection details are hardcoded to the public AACT database:
+- Host: aact-db.ctti-clinicaltrials.org
+- Port: 5432
+- Database: aact
+- Schema: ctgov
+- Table: studies
+
+
+<Card
+  title="View Source Code"
+  icon="brands github"
+  href="https://github.com/airweave-ai/airweave/tree/main/backend/airweave/platform/sources/ctti.py"
+>
+  Explore the Ctti connector implementation
+</Card>
+
+### Authentication
+
+This connector uses a custom authentication configuration class: `CTTIAuthConfig`.
+
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+CTTI Clinical Trials authentication credentials schema.
+<ParamField
+  path="username"
+  type="str"
+  required={true}
+>
+  Username for the AACT Clinical Trials database
+</ParamField>
+<ParamField
+  path="password"
+  type="str"
+  required={true}
+>
+  Password for the AACT Clinical Trials database
+</ParamField>
+</Card>
+
+
+
+
+
+{/* AUTO-GENERATED CONTENT END */}

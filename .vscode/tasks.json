@@ -3,8 +3,8 @@
     "tasks": [
         {
             "label": "start-docker-services",
+            "command": "docker compose -f docker/docker-compose.dev.yml up -d",
             "type": "shell",
-            "command": "docker compose -f docker-compose.dev.yml up -d",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
@@ -26,8 +26,8 @@
         },
         {
             "label": "stop-docker-services",
+            "command": "docker compose -f docker/docker-compose.dev.yml down",
             "type": "shell",
-            "command": "docker compose -f docker-compose.dev.yml down",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"

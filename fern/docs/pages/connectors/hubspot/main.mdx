@@ -43,7 +43,28 @@ their respective entity schemas.
 
 This connector uses **OAuth 2.0 with refresh token**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Hubspot authentication credentials schema.
+<ParamField
+  path="refresh_token"
+  type="str"
+  required={true}
+>
+  The refresh token for your Hubspot app.
+</ParamField>
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Hubspot app.
+</ParamField>
+</Card>
 
 
 ## Entities
@@ -52,15 +73,14 @@ The following data models are available for this connector:
 
 <Accordion title="HubspotContactEntity">
 
-Schema for HubSpot contact entities.
+Schema for HubSpot contact entities with flexible property handling.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | first_name | Optional[str] | The contact's first name |
 | last_name | Optional[str] | The contact's last name |
 | email | Optional[str] | The contact's email address |
-| phone | Optional[str] | The contact's phone number |
-| lifecycle_stage | Optional[str] | The contact's lifecycle stage in the marketing/sales process |
+| properties | Dict[str, Any] | All properties from HubSpot contact object |
 | created_at | Optional[datetime] | Timestamp when the contact was created |
 | updated_at | Optional[datetime] | Timestamp when the contact was last updated |
 | archived | bool | Whether the contact is archived |
@@ -68,18 +88,13 @@ Schema for HubSpot contact entities.
 </Accordion>
 <Accordion title="HubspotCompanyEntity">
 
-Schema for HubSpot company entities.
+Schema for HubSpot company entities with flexible property handling.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | name | Optional[str] | The company's name |
 | domain | Optional[str] | The company's domain name |
-| industry | Optional[str] | The company's industry category |
-| phone | Optional[str] | The company's phone number |
-| website | Optional[str] | The company's website URL |
-| city | Optional[str] | The city where the company is located |
-| state | Optional[str] | The state or region where the company is located |
-| zip | Optional[str] | The postal code where the company is located |
+| properties | Dict[str, Any] | All properties from HubSpot company object |
 | created_at | Optional[datetime] | Timestamp when the company was created |
 | updated_at | Optional[datetime] | Timestamp when the company was last updated |
 | archived | bool | Whether the company is archived |
@@ -87,15 +102,13 @@ Schema for HubSpot company entities.
 </Accordion>
 <Accordion title="HubspotDealEntity">
 
-Schema for HubSpot deal entities.
+Schema for HubSpot deal entities with flexible property handling.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | deal_name | Optional[str] | The name of the deal |
 | amount | Optional[float] | The monetary value of the deal |
-| pipeline | Optional[str] | The pipeline the deal belongs to |
-| deal_stage | Optional[str] | The stage of the deal in the sales process |
-| close_date | Optional[datetime] | The date when the deal is expected to close or closed |
+| properties | Dict[str, Any] | All properties from HubSpot deal object |
 | created_at | Optional[datetime] | Timestamp when the deal was created |
 | updated_at | Optional[datetime] | Timestamp when the deal was last updated |
 | archived | bool | Whether the deal is archived |
@@ -103,13 +116,13 @@ Schema for HubSpot deal entities.
 </Accordion>
 <Accordion title="HubspotTicketEntity">
 
-Schema for HubSpot ticket entities.
+Schema for HubSpot ticket entities with flexible property handling.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | subject | Optional[str] | The subject of the support ticket |
 | content | Optional[str] | The content or description of the ticket |
-| status | Optional[str] | The current status of the ticket |
+| properties | Dict[str, Any] | All properties from HubSpot ticket object |
 | created_at | Optional[datetime] | Timestamp when the ticket was created |
 | updated_at | Optional[datetime] | Timestamp when the ticket was last updated |
 | archived | bool | Whether the ticket is archived |

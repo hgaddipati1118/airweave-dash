@@ -39,7 +39,28 @@ Asana source implementation.
 
 This connector uses **OAuth 2.0 with refresh token**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Asana authentication credentials schema.
+<ParamField
+  path="refresh_token"
+  type="str"
+  required={true}
+>
+  The refresh token for your Asana app.
+</ParamField>
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Asana app.
+</ParamField>
+</Card>
 
 
 ## Entities

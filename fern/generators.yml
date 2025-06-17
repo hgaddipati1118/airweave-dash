@@ -6,7 +6,7 @@ groups:
   public:
     generators:
       - name: fernapi/fern-python-sdk
-        version: 4.3.10
+        version: 4.21.2
         output:
           location: pypi
           package-name: airweave-sdk
@@ -17,7 +17,7 @@ groups:
           client_class_name: AirweaveSDK
 
       - name: fernapi/fern-typescript-node-sdk
-        version: 0.45.2
+        version: 1.0.0
         output:
           location: npm
           package-name: "@airweave/sdk"

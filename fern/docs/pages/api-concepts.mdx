@@ -1,0 +1,46 @@
+---
+title: API Concepts
+subtitle: Core entities in the Airweave API
+slug: api-concepts
+description: Understanding Sources, Collections, Source Connections, and White Label integrations in Airweave's API.
+---
+
+This page explains the core concepts you'll work with in the Airweave API. Understanding these entities will help you effectively use the API endpoints below.
+
+## Sources
+
+**Sources** are the available data connectors in Airweave. Think of them as the "types" of apps and databases you can connect to.
+
+- **What they are**: Pre-built connectors (e.g., "Notion", "Slack", "Google Drive")
+- **What they define**: Authentication methods, configuration options, and data extraction logic
+- **Key point**: Sources are templates - you don't connect to them directly
+
+## Collections
+
+**Collections** are logical groups of data sources that create unified, searchable knowledge bases.
+
+- **What they are**: Project workspaces where related data comes together
+- **What they provide**: A single search endpoint that queries across multiple connected sources
+- **Key point**: Each collection gets its own API endpoint for searching
+
+## Source Connections
+
+**Source Connections** are the live connections to your data sources that Airweave uses to sync and transform your data into searchable information.
+
+- **What they are**: Configured instances of sources with your actual credentials (e.g., "My Team's Slack Workspace")
+- **What they do**: Airweave uses these connections to actively sync data from your apps and databases
+- **How they work**: Transform your raw data into searchable, structured information within collections
+- **Key point**: These are the actual data pipelines that make your information searchable
+
+## Relationship
+
+Here's how they work together:
+
+1. **Create a Collection** for organized searching
+2. **Choose a Source** to add to the collection (e.g., "Notion")
+3. **Add a Source Connection** in the collection with your credentials
+4. **Optionally use [White Label](/white-labeling)** for custom branding
+
+<Note>
+**Quick Example**: Create a "Finance" collection, choose the "Stripe" source, create a source connection with your Stripe API key, wait for the data sync to complete and call the search collectoin endpoint. Optionally use white label so users see "YourApp wants to access Stripe" instead of "Airweave wants to access Stripe".
+</Note>

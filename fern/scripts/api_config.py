@@ -16,18 +16,20 @@ INCLUDED_ENDPOINTS = {
     "/source-connections/{source_connection_id}/run/": {"post": True},
     "/source-connections/{source_connection_id}/jobs/": {"get": True},
     # White Labels
-    "/white_labels/": {"get": True, "post": True},
-    "/white_labels/{white_label_id}/": {"get": True, "put": True, "delete": True},
-    "/white_labels/list/": {"get": True},
-    "/white_labels/{white_label_id}/syncs/": {"get": True},
+    "/white-labels/": {"get": True, "post": True},
+    "/white-labels/{white_label_id}/": {"get": True, "put": True, "delete": True},
+    "/white-labels/list/": {"get": True},
+    "/white-labels/{white_label_id}/source-connections/": {"get": True},
+    "/white-labels/{white_label_id}/oauth2/auth_url/": {"get": True},
+    "/white-labels/{white_label_id}/oauth2/code/": {"post": True},
 }
 
 # API group descriptions for documentation
 API_GROUPS = {
-    "Sources": "API endpoints for managing data sources",
-    "Collections": "API endpoints for managing collections of data",
-    "Source Connections": "API endpoints for managing connections to data sources",
-    "White Labels": "API endpoints for managing white label configurations",
+    "Sources": "API endpoints for discovering available data source connectors and their configuration requirements",
+    "Collections": "API endpoints for managing collections - logical groups of data sources that provide unified search capabilities",
+    "Source Connections": "API endpoints for managing live connections to data sources. Source connections are the actual configured instances that Airweave uses to sync data from your apps and databases, transforming it into searchable, structured information within collections",
+    "White Labels": "API endpoints for managing custom OAuth2 integrations with your own branding and credentials",
 }
 
 

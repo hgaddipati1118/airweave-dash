@@ -1,0 +1,580 @@
+---
+title: Quickstart
+subtitle: Get from zero to searching your data in under 5 minutes
+slug: quickstart
+description: Connect your first data source and start searching with Airweave's API in minutes. Choose between our hosted cloud platform or self-hosted deployment.
+---
+
+This guide will take you from zero to searching your data with Airweave in under 5 minutes. You'll create a collection, connect a data source, and make your first search query.
+
+<Steps toc={true}>
+  ### Choose Your Path
+
+    Start by deciding how you want to run Airweave. We recommend our cloud platform for the fastest setup, but you can also self-host for complete control.
+
+  <AccordionGroup toc={true}>
+    <Accordion title='🚀 Cloud Platform (Recommended)'>
+      **Get started instantly** with our hosted platform - no setup required!
+
+      1. **Sign up** at [app.airweave.ai](https://app.airweave.ai)
+      2. **Create an account** and complete onboarding
+      3. **You're ready!** Continue to Step 2 below
+
+      <Info>
+        **Free tier available** - Perfect for testing and small projects. No credit card required to start.
+      </Info>
+    </Accordion>
+
+    <Accordion title='🛠️ Self-Hosted'>
+      **Full control** by running Airweave in your own environment.
+
+      <Tabs>
+        <Tab title="macOS / Linux">
+          <CodeBlock title="Self-hosted setup">
+          ```bash
+          # 1. Clone the repository
+          git clone https://github.com/airweave-ai/airweave.git
+          cd airweave
+
+          # 2. Build and run with Docker
+          chmod +x start.sh
+          ./start.sh
+          ```
+          </CodeBlock>
+
+          That's it! Access your dashboard at `http://localhost:8080`
+        </Tab>
+
+        <Tab title="Windows">
+          <CodeBlock title="Self-hosted setup">
+          ```cmd
+          # 1. Clone the repository
+          git clone https://github.com/airweave-ai/airweave.git
+          cd airweave
+
+          # 2. Build and run with Docker
+          start.bat
+          ```
+          </CodeBlock>
+
+          That's it! Access your dashboard at `http://localhost:8080`
+        </Tab>
+      </Tabs>
+
+      <Note>
+        **Requirements**: Docker and Docker Compose must be installed on your system.
+      </Note>
+    </Accordion>
+  </AccordionGroup>
+
+  ### Create Your First Collection
+
+  Collections are logical groups of data sources that get their own searchable endpoints. Start by choosing a source from the dashboard:
+
+  <AccordionGroup toc={true}>
+    <Accordion title='📱 Using the Dashboard (Recommended)'>
+      1. **Navigate to your dashboard**
+      2. **Click directly on a source** (like Notion, Slack, GitHub)
+      3. **Enter collection details** when prompted
+    </Accordion>
+
+    <Accordion title='🌐 Using the REST API'>
+      Create a collection programmatically with our REST API:
+
+      <CodeBlock title="Create Collection Request">
+      ```bash
+      curl -X POST 'https://api.airweave.ai/collections' \
+        -H 'x-api-key: YOUR_API_KEY' \
+        -H 'Content-Type: application/json' \
+        -d '{
+          "name": "My First Collection"
+        }'
+      ```
+      </CodeBlock>
+
+      **Response:**
+      <CodeBlock title="Response">
+      ```json
+      {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "My First Collection",
+        "readable_id": "my-first-collection-abc123",
+        "created_at": "2024-01-15T10:30:00Z",
+        "status": "NEEDS SOURCE"
+      }
+      ```
+      </CodeBlock>
+
+      <Note title="Getting your API key">
+        Find your API key in the dashboard under **Settings > API Keys**, or create one if you don't have any yet.
+      </Note>
+    </Accordion>
+
+    <Accordion title='🐍 Using Python SDK'>
+      <CodeBlock title="Create Collection">
+      ```python
+      from airweave import AirweaveSDK
+
+      client = AirweaveSDK(api_key="YOUR_API_KEY")
+
+      collection = client.collections.create_collection(
+          name="My First Collection"
+      )
+
+      print(f"Created collection: {collection.readable_id}")
+      ```
+      </CodeBlock>
+
+      **Install the SDK:**
+      <CodeBlock title="Install SDK">
+      ```bash
+      pip install airweave-sdk
+      ```
+      </CodeBlock>
+      <Note title="Getting your API key">
+        Find your API key in the dashboard under **Settings > API Keys**, or create one if you don't have any yet.
+      </Note>
+    </Accordion>
+
+    <Accordion title='🟨 Using Node.js SDK'>
+      <CodeBlock title="Create Collection">
+      ```typescript
+      import { AirweaveSDKClient } from "@airweave/sdk";
+
+      const client = new AirweaveSDKClient({
+        apiKey: "YOUR_API_KEY"
+      });
+
+      const collection = await client.collections.createCollection({
+        name: "My First Collection"
+      });
+
+      console.log(`Created collection: ${collection.readableId}`);
+      ```
+      </CodeBlock>
+
+      **Install the SDK:**
+      <CodeBlock title="Install SDK">
+      ```bash
+      npm install @airweave/sdk
+      ```
+      </CodeBlock>
+      <Note title="Getting your API key">
+        Find your API key in the dashboard under **Settings > API Keys**, or create one if you don't have any yet.
+      </Note>
+    </Accordion>
+  </AccordionGroup>
+
+  ### Connect Your First Data Source
+
+  Now you'll authenticate and configure your chosen data source. The process varies by source type:
+
+  <AccordionGroup toc={true}>
+    <Accordion title='🎯 Using the Dashboard (Easiest)'>
+      After creating your collection, you'll be prompted to **connect to the source**:
+
+      1. **Enter Connection Details**
+      2. **Authenticate**
+      <Tip>
+        OAuth2 sources (Google, Slack) open a popup for authorization. API key sources (Stripe, Notion) validate immediately.
+      </Tip>
+      3. **Configure Source (Optional)**
+      <Note>
+        Some sources have config options like exclude patterns (Google Drive) or specific branches (GitHub).
+      </Note>
+      4. **Connect**
+      <Success title="🎉 You're connected!">
+        ➡️ You'll automatically be taken to your **collection detail view** to watch the sync progress!
+      </Success>
+    </Accordion>
+
+    <Accordion title='🌐 Using the REST API'>
+      Create source connections programmatically with our REST API. Here's an example using Stripe (API key authentication):
+
+      <CodeBlock title="Create Source Connection Request">
+      ```bash
+      curl -X POST 'https://api.airweave.ai/source-connections' \
+        -H 'x-api-key: YOUR_API_KEY' \
+        -H 'Content-Type: application/json' \
+        -d '{
+          "name": "My Stripe Connection",
+          "short_name": "stripe",
+          "collection": "my-first-collection-abc123",
+          "auth_fields": {
+            "api_key": "sk_test_your_stripe_api_key"
+          },
+          "config_fields": {},
+          "sync_immediately": true
+        }'
+      ```
+      </CodeBlock>
+
+      **Response:**
+      <CodeBlock title="Response">
+      ```json
+      {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "My Stripe Connection",
+        "short_name": "stripe",
+        "collection": "my-first-collection-abc123",
+        "status": "SYNCING",
+        "created_at": "2024-01-15T10:30:00Z",
+        "sync_id": "456e7890-e89b-12d3-a456-426614174000"
+      }
+      ```
+      </CodeBlock>
+
+      <Note title="OAuth2 Sources">
+        For OAuth2 sources (Google Drive, Slack, etc.), see our [Direct Token Authentication](/direct-token-auth) guide for the multi-step authentication flow.
+      </Note>
+    </Accordion>
+
+    <Accordion title='🐍 Using Python SDK'>
+      <CodeBlock title="Create Source Connection">
+      ```python
+      from airweave import AirweaveSDK
+
+      client = AirweaveSDK(api_key="YOUR_API_KEY")
+
+      source_connection = client.source_connections.create_source_connection(
+          name="My Stripe Connection",
+          short_name="stripe",
+          collection="my-first-collection-abc123",
+          auth_fields={
+              "api_key": "sk_test_your_stripe_api_key"
+          },
+          config_fields={},
+          sync_immediately=True
+      )
+
+      print(f"Created connection: {source_connection.id}")
+      print(f"Status: {source_connection.status}")
+      ```
+      </CodeBlock>
+
+      <Note title="Getting your API key">
+        Find your API key in the dashboard under **Settings > API Keys**, or create one if you don't have any yet.
+      </Note>
+
+      <Note title="OAuth2 Sources">
+        For OAuth2 sources (Google Drive, Slack, etc.), see our [Direct Token Authentication](/direct-token-auth) guide to learn how to provide access tokens.
+      </Note>
+    </Accordion>
+
+    <Accordion title='🟨 Using Node.js SDK'>
+      <CodeBlock title="Create Source Connection">
+      ```typescript
+      import { AirweaveSDKClient } from "@airweave/sdk";
+
+      const client = new AirweaveSDKClient({
+        apiKey: "YOUR_API_KEY"
+      });
+
+      const sourceConnection = await client.sourceConnections.createSourceConnection({
+        name: "My Stripe Connection",
+        shortName: "stripe",
+        collection: "my-first-collection-abc123",
+        authFields: {
+          apiKey: "sk_test_your_stripe_api_key"
+        },
+        configFields: {},
+        syncImmediately: true
+      });
+
+      console.log(`Created connection: ${sourceConnection.id}`);
+      console.log(`Status: ${sourceConnection.status}`);
+      ```
+      </CodeBlock>
+
+      <Note title="Getting your API key">
+        Find your API key in the dashboard under **Settings > API Keys**, or create one if you don't have any yet.
+      </Note>
+
+      <Note title="OAuth2 Sources">
+        For OAuth2 sources (Google Drive, Slack, etc.), see our [Direct Token Authentication](/direct-token-auth) guide to learn how to provide access tokens.
+      </Note>
+    </Accordion>
+  </AccordionGroup>
+
+  ### Search Your Data
+
+  Airweave offers **two powerful search modes**:
+  - **🔍 Raw Results**: Get relevant documents and data snippets directly
+  - **🤖 AI Completion**: Have an LLM analyze the data and provide intelligent responses
+
+  <AccordionGroup toc={true}>
+    <Accordion title='🔍 Using the Dashboard'>
+      In your collection detail view:
+      1. **Watch the sync progress** in real-time
+      2. **Use the search bar** to query your data, e.g.:
+         - "What are our product features?"
+         - "Show me recent customer feedback"
+         - "Find documentation about API authentication"
+
+      Results appear instantly with relevant snippets and source attribution! 🎉
+
+      <Tip>
+        **Toggle between modes**: Use the dropdown next to the search bar to switch between **Raw Results** and **AI Completion** modes.
+      </Tip>
+    </Accordion>
+
+    <Accordion title='🌐 Using the REST API'>
+      **Get Raw Search Results:**
+      <CodeBlock title="Search Request (Raw)">
+      ```bash
+      curl -X GET 'https://api.airweave.ai/collections/my-first-collection-abc123/search?query=What%20are%20our%20product%20features&response_type=raw' \
+        -H 'x-api-key: YOUR_API_KEY' \
+        -H 'Content-Type: application/json'
+      ```
+      </CodeBlock>
+
+      **Response:**
+      <CodeBlock title="Response">
+      ```json
+      {
+        "results": [
+          {
+            "content": "Our key product features include semantic search, real-time sync, and 28+ data connectors...",
+            "source": "notion",
+            "document_id": "abc123",
+            "relevance_score": 0.95,
+            "metadata": {
+              "title": "Product Overview",
+              "url": "https://notion.so/product-overview"
+            }
+          }
+        ],
+        "response_type": "raw",
+        "completion": null,
+        "status": "success"
+      }
+      ```
+      </CodeBlock>
+
+      **Get AI Completion:**
+      <CodeBlock title="Search Request (Completion)">
+      ```bash
+      curl -X GET 'https://api.airweave.ai/collections/my-first-collection-abc123/search?query=What%20are%20our%20product%20features&response_type=completion' \
+        -H 'x-api-key: YOUR_API_KEY' \
+        -H 'Content-Type: application/json'
+      ```
+      </CodeBlock>
+
+      **Response:**
+      <CodeBlock title="Response">
+      ```json
+      {
+        "results": [
+          {
+            "content": "Our key product features include semantic search, real-time sync, and 28+ data connectors...",
+            "source": "notion",
+            "document_id": "abc123",
+            "relevance_score": 0.95,
+            "metadata": {
+              "title": "Product Overview",
+              "url": "https://notion.so/product-overview"
+            }
+          }
+        ],
+        "response_type": "completion",
+        "completion": "Based on your documentation, your product offers three main features: 1) Semantic search that understands natural language queries, 2) Real-time data synchronization across all connected sources, and 3) A comprehensive library of 28+ pre-built data connectors including popular tools like Notion, Slack, and GitHub.",
+        "status": "success"
+      }
+      ```
+      </CodeBlock>
+
+      <Note title="Response Types">
+        - `raw`: Returns search results only
+        - `completion`: Returns search results + AI-generated response based on the data
+      </Note>
+    </Accordion>
+
+    <Accordion title='🐍 Using Python SDK'>
+      **Get Raw Search Results:**
+      <CodeBlock title="Search (Raw Results)">
+      ```python
+      from airweave import AirweaveSDK
+      from airweave.schemas import ResponseType
+
+      client = AirweaveSDK(api_key="YOUR_API_KEY")
+
+      # Raw search results
+      results = client.collections.search_collection(
+          readable_id="my-first-collection-abc123",
+          query="What are our product features?",
+          response_type=ResponseType.RAW
+      )
+
+      print(f"Found {len(results.results)} relevant documents:")
+      for result in results.results:
+          print(f"📄 {result.metadata.title}")
+          print(f"📝 {result.content[:200]}...")
+          print(f"🔗 {result.metadata.url}\n")
+      ```
+      </CodeBlock>
+
+      **Get AI Completion:**
+      <CodeBlock title="Search (AI Completion)">
+      ```python
+      from airweave import AirweaveSDK
+      from airweave.schemas import ResponseType
+
+      client = AirweaveSDK(api_key="YOUR_API_KEY")
+
+      # AI completion based on search results
+      results = client.collections.search_collection(
+          readable_id="my-first-collection-abc123",
+          query="What are our product features?",
+          response_type=ResponseType.COMPLETION
+      )
+
+      print("🤖 AI Response:")
+      print(results.completion)
+      print(f"\n📚 Based on {len(results.results)} sources:")
+      for result in results.results:
+          print(f"  • {result.metadata.title}")
+      ```
+      </CodeBlock>
+
+      <Tip>
+        **Import ResponseType** from `airweave.schemas` to use type-safe response type constants.
+      </Tip>
+    </Accordion>
+
+    <Accordion title='🟨 Using Node.js SDK'>
+      **Get Raw Search Results:**
+      <CodeBlock title="Search (Raw Results)">
+      ```typescript
+      import { AirweaveSDKClient, ResponseType } from "@airweave/sdk";
+
+      const client = new AirweaveSDKClient({ apiKey: "YOUR_API_KEY" });
+
+      // Raw search results
+      const results = await client.collections.searchCollection(
+        "my-first-collection-abc123",
+        {
+          query: "What are our product features?",
+          responseType: ResponseType.RAW
+        }
+      );
+
+      console.log(`Found ${results.results.length} relevant documents:`);
+      results.results.forEach(result => {
+        console.log(`📄 ${result.metadata.title}`);
+        console.log(`📝 ${result.content.substring(0, 200)}...`);
+        console.log(`🔗 ${result.metadata.url}\n`);
+      });
+      ```
+      </CodeBlock>
+
+      **Get AI Completion:**
+      <CodeBlock title="Search (AI Completion)">
+      ```typescript
+      import { AirweaveSDKClient, ResponseType } from "@airweave/sdk";
+
+      const client = new AirweaveSDKClient({ apiKey: "YOUR_API_KEY" });
+
+      // AI completion based on search results
+      const results = await client.collections.searchCollection(
+        "my-first-collection-abc123",
+        {
+          query: "What are our product features?",
+          responseType: ResponseType.COMPLETION
+        }
+      );
+
+      console.log("🤖 AI Response:");
+      console.log(results.completion);
+      console.log(`\n📚 Based on ${results.results.length} sources:`);
+      results.results.forEach(result => {
+        console.log(`  • ${result.metadata.title}`);
+      });
+      ```
+      </CodeBlock>
+
+      <Tip>
+        **Use ResponseType enum** for type-safe response type selection: `ResponseType.RAW` or `ResponseType.COMPLETION`.
+      </Tip>
+    </Accordion>
+  </AccordionGroup>
+
+  ### 🎉 You're All Set!
+
+  Congratulations! You've successfully:
+  - ✅ Set up Airweave (cloud or self-hosted)
+  - ✅ Created your first collection
+  - ✅ Connected a data source with proper authentication
+  - ✅ Made your first search query
+
+  Your data is now searchable and ready for your AI agents to use!
+
+  <Success title="🎯 Pro Tip">
+    **For the best agent experience**: Once you have multiple sources connected, try asking complex questions that span different data sources. Airweave's semantic search will find relevant information across all your connected apps!
+</Success>
+
+</Steps>
+
+## What's Next?
+
+Now that you have Airweave running, here are some powerful ways to extend your setup:
+
+<CardGroup cols={2}>
+  <Card
+    title="🤖 Connect AI Agents"
+    icon="fa-solid fa-robot"
+    href="/mcp-server"
+  >
+    *Use with Claude, Cursor, or any MCP-compatible agent*
+    Enable your agents to search across all your data sources
+  </Card>
+  <Card
+    title="🔗 See All Sources"
+    icon="fa-solid fa-plug"
+    href="/docs/connectors/asana"
+  >
+    *Connect your entire data ecosystem*
+    Browse our 28+ pre-built connectors and add them to your collection
+  </Card>
+  <Card
+    title="⚙️ Advanced Configuration"
+    icon="fa-solid fa-sliders"
+    href="/api-concepts"
+  >
+    *Dive deeper into the API*
+    Customize sync schedules, transformations, and search parameters
+  </Card>
+  <Card
+    title="🏗️ Add New Sources"
+    icon="fa-solid fa-code-branch"
+    href="/self-hosted-setup"
+  >
+    *Add custom sources*
+    Easily create new connectors for any data source
+  </Card>
+</CardGroup>
+
+## Get Support
+
+<CardGroup cols={3}>
+  <Card
+    title="💬 Discord Community"
+    icon="fa-brands fa-discord"
+    href="https://discord.gg/484HY9Ehxt"
+  >
+    Join our active community for help and discussions
+  </Card>
+  <Card
+    title="📚 Full Documentation"
+    icon="fa-solid fa-book"
+    href="/api-reference"
+  >
+    Explore our complete API reference and guides
+  </Card>
+  <Card
+    title="🐛 Report Issues"
+    icon="fa-brands fa-github"
+    href="https://github.com/airweave-ai/airweave/issues"
+  >
+    Found a bug? Let us know on GitHub
+  </Card>
+</CardGroup>

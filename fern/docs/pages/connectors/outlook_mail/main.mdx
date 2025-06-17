@@ -26,9 +26,7 @@ The Outlook Mail connector allows you to sync data from Outlook Mail into Airwea
 
 Outlook Mail source implementation (read-only).
 
-This connector retrieves Outlook mail folders in a hierarchical fashion
-and yields OutlookMailFolderEntity for each folder. For each folder, it
-also retrieves email messages and yields OutlookMessageEntity items.
+Retrieves and yields Outlook mail folders, messages and attachments.
 
 
 <Card
@@ -41,9 +39,30 @@ also retrieves email messages and yields OutlookMessageEntity items.
 
 ### Authentication
 
-This connector uses **OAuth 2.0 with refresh token**.
+This connector uses **OAuth 2.0 with rotating refresh token**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Outlook Mail authentication credentials schema.
+<ParamField
+  path="refresh_token"
+  type="str"
+  required={true}
+>
+  The refresh token for your Outlook Mail app.
+</ParamField>
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Outlook Mail app.
+</ParamField>
+</Card>
 
 
 ## Entities
@@ -69,30 +88,26 @@ See:
 </Accordion>
 <Accordion title="OutlookMessageEntity">
 
-Schema for an Outlook message.
+Schema for Outlook message entities.
 
-See:
-  https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0
+Reference: https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0
 
 | Field | Type | Description |
 |-------|------|-------------|
-| breadcrumbs | List[Breadcrumb] | Breadcrumb hierarchy (e.g., parent mail folder). |
-| subject | Optional[str] | Subject of the email message. |
-| body_preview | Optional[str] | Short text preview of the message body. |
-| body_content | Optional[str] | Full text or HTML body of the message. |
-| is_read | Optional[bool] | Indicates if the message has been read (True) or is unread (False). |
-| is_draft | Optional[bool] | Indicates if the message is still a draft. |
-| importance | Optional[str] | Indicates the importance of the message (Low, Normal, High). |
-| has_attachments | Optional[bool] | Indicates if the message has file attachments. |
-| internet_message_id | Optional[str] | Internet message ID of the email (RFC 2822 format). |
-| from_ | Optional[Dict[str, Any]] | Information about the sender. Typically includes emailAddress { name, address }. |
-| to_recipients | List[Dict[str, Any]] | List of primary recipients (each typically contains emailAddress info). |
-| cc_recipients | List[Dict[str, Any]] | List of CC recipients (each typically contains emailAddress info). |
-| bcc_recipients | List[Dict[str, Any]] | List of BCC recipients (each typically contains emailAddress info). |
-| sent_at | Optional[datetime] | Timestamp when the message was sent. |
-| received_at | Optional[datetime] | Timestamp when the message was received. |
-| created_at | Optional[datetime] | Timestamp when the message resource was created (if available). |
-| updated_at | Optional[datetime] | Timestamp when the message was last updated (if available). |
+| folder_name | str | Name of the folder containing this message |
+| subject | Optional[str] | Subject line of the message |
+| sender | Optional[str] | Email address of the sender |
+| to_recipients | List[str] | Recipients of the message |
+| cc_recipients | List[str] | CC recipients |
+| sent_date | Optional[datetime] | Date the message was sent |
+| received_date | Optional[datetime] | Date the message was received |
+| body_preview | Optional[str] | Brief snippet of the message content |
+| body_content | Optional[str] | Full message body content |
+| is_read | bool | Whether the message has been read |
+| is_draft | bool | Whether the message is a draft |
+| importance | Optional[str] | Importance level (Low, Normal, High) |
+| has_attachments | bool | Whether the message has attachments |
+| internet_message_id | Optional[str] | Internet message ID |
 
 </Accordion>
 

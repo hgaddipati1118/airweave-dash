@@ -427,6 +427,7 @@ def _create_transformer_definition(
         "FileEntity",
         "PolymorphicEntity",
         "CodeFileEntity",
+        "WebEntity",
     ]
     # For input types
     input_entity_ids = []

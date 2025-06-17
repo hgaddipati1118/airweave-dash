@@ -81,7 +81,9 @@ class CollectionBase(BaseModel):
 class CollectionCreate(CollectionBase):
     """Schema for creating a collection."""
 
-    pass
+    model_config = {
+        "json_schema_extra": {"examples": [{"name": "Finance Data", "readable_id": "finance-data"}]}
+    }
 
 
 class CollectionUpdate(BaseModel):
@@ -117,6 +119,25 @@ class Collection(CollectionInDBBase):
 
     # Ephemeral status derived from source connections
     status: CollectionStatus = CollectionStatus.NEEDS_SOURCE
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Finance Data",
+                    "readable_id": "finance-data",
+                    "created_at": "2024-01-15T09:30:00Z",
+                    "modified_at": "2024-01-15T14:22:15Z",
+                    "organization_id": "org12345-6789-abcd-ef01-234567890abc",
+                    "created_by_email": "admin@company.com",
+                    "modified_by_email": "finance@company.com",
+                    "status": "ACTIVE",
+                }
+            ]
+        },
+    }
 
 
 class CollectionSearchQuery(BaseModel):

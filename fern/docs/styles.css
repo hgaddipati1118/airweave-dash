@@ -1,3 +1,127 @@
+:root {
+    /* Light mode colors matching frontend - dark text on light background */
+    --fern-color-background: #FAFCFE;
+    --fern-color-background-rgb: 255, 255, 255;
+    --fern-color-text: #060606;
+    --fern-color-text-rgb: 6, 6, 6;
+    --fern-color-text-muted: #404040;
+    --fern-color-border: #D0D0D0;
+    --fern-color-card: #FFFFFF;
+    --fern-color-accent: #FFFFFF;
+}
+
+/* Dark mode colors when .dark class is present */
+.dark {
+    /* Dark mode colors matching frontend - light text on dark background */
+    --fern-color-background: #060606;
+    --fern-color-background-rgb: 6, 6, 6;
+    --fern-color-text: #FAFCFE;
+    --fern-color-text-rgb: 241, 238, 234;
+    --fern-color-text-muted: #B0B0B0;
+    --fern-color-border: #2A2A2A;
+    --fern-color-card: #1A1A1A;
+    --fern-color-accent: #0F0F0F;
+}
+
+/* Apply colors to Fern elements */
+.fern-docs-page {
+    background-color: var(--fern-color-background);
+    color: var(--fern-color-text);
+}
+
+.fern-sidebar {
+    background-color: var(--fern-color-background);
+    border-color: var(--fern-color-border);
+}
+
+/* Card styling for both light and dark modes */
+.fern-card,
+[data-fern-component="card"],
+.fern-card-group .fern-card,
+div[class*="card"],
+div[class*="Card"],
+.card,
+.Card {
+    background-color: var(--fern-color-card) !important;
+    border-color: var(--fern-color-border) !important;
+    color: var(--fern-color-text) !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+.fern-card:hover,
+[data-fern-component="card"]:hover,
+div[class*="card"]:hover,
+div[class*="Card"]:hover,
+.card:hover,
+.Card:hover {
+    background-color: var(--fern-color-accent) !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Ensure all text within cards uses the correct color */
+.fern-card *,
+[data-fern-component="card"] *,
+.fern-card-group .fern-card *,
+div[class*="card"] *,
+div[class*="Card"] *,
+.card *,
+.Card * {
+    color: var(--fern-color-text) !important;
+}
+
+/* Card groups styling */
+[data-fern-component="card-group"] [data-fern-component="card"],
+div[class*="card-group"] div[class*="card"],
+div[class*="CardGroup"] div[class*="Card"],
+.card-group .card,
+.CardGroup .Card {
+    background-color: var(--fern-color-card) !important;
+    border: 1px solid var(--fern-color-border) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Connector icon cards specific styling */
+[data-fern-component="card"] img {
+    border-radius: 8px;
+    max-width: 32px;
+    max-height: 32px;
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border: none !important;
+}
+
+/* Remove borders from all images inside cards */
+*[class*="card"] img,
+*[class*="Card"] img,
+.fern-card img,
+.card img,
+.Card img {
+    border: none !important;
+    border-radius: 8px;
+}
+
+/* Also remove borders from images in card groups */
+[data-fern-component="card-group"] img,
+div[class*="card-group"] img,
+div[class*="CardGroup"] img,
+.card-group img,
+.CardGroup img {
+    border: none !important;
+    border-radius: 8px;
+}
+
+/* Dark mode specific adjustments for connector icons */
+.dark [data-fern-component="card"] img {
+    filter: brightness(1.1) contrast(0.9);
+}
+
+.fern-code-block {
+    background-color: var(--fern-color-accent);
+    border-color: var(--fern-color-border);
+}
+
 img {
     border-radius: 8px;
 }
@@ -26,8 +150,8 @@ img {
 }
 
 /* Alternative approach using the direct relationship */
-.fern-page-heading + .connector-header,
-.connector-header ~ .fern-page-heading {
+.fern-page-heading+.connector-header,
+.connector-header~.fern-page-heading {
     margin-top: 0;
 }
 
@@ -39,4 +163,79 @@ img {
 /* If our connector header is present, hide the Fern default heading */
 .fern-content:has(.connector-header) .fern-page-heading {
     display: none;
+}
+
+/* FIXED: Use .dark class for proper theme detection */
+
+/* Light mode: White cards with better contrast */
+*[class*="card"]:not(img):not(svg):not(path),
+*[class*="Card"]:not(img):not(svg):not(path),
+*[data-fern-component="card"],
+.fern-card,
+div[role="button"],
+div[role="link"],
+a[class*="card"],
+a[class*="Card"] {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    color: var(--fern-color-text) !important;
+    border-color: var(--fern-color-border) !important;
+    border: 1px solid var(--fern-color-border) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Dark mode: Dark cards (only when .dark class is present) */
+.dark *[class*="card"]:not(img):not(svg):not(path),
+.dark *[class*="Card"]:not(img):not(svg):not(path),
+.dark *[data-fern-component="card"],
+.dark .fern-card,
+.dark div[role="button"],
+.dark div[role="link"],
+.dark a[class*="card"],
+.dark a[class*="Card"] {
+    background-color: #1A1A1A !important;
+    background: #1A1A1A !important;
+    color: #FAFCFE !important;
+    border-color: #2A2A2A !important;
+    border: 1px solid #2A2A2A !important;
+}
+
+/* Light mode: Dark text in cards */
+*[class*="card"]:not(img):not(svg):not(path) *,
+*[class*="Card"]:not(img):not(svg):not(path) *,
+*[data-fern-component="card"] *,
+.fern-card * {
+    color: var(--fern-color-text) !important;
+}
+
+/* Dark mode: Light text in cards */
+.dark *[class*="card"]:not(img):not(svg):not(path) *,
+.dark *[class*="Card"]:not(img):not(svg):not(path) *,
+.dark *[data-fern-component="card"] *,
+.dark .fern-card * {
+    color: #FAFCFE !important;
+}
+
+/* Dark mode: Target white/light colored elements and make them dark */
+.dark *[style*="background-color: white"],
+.dark *[style*="background-color: #fff"],
+.dark *[style*="background-color: #ffffff"],
+.dark *[style*="background: white"],
+.dark *[style*="background: #fff"],
+.dark *[style*="background: #ffffff"],
+.dark *[style*="backgroundColor: white"],
+.dark *[style*="backgroundColor: #fff"],
+.dark *[style*="backgroundColor: #ffffff"] {
+    background-color: #1A1A1A !important;
+    background: #1A1A1A !important;
+    color: #FAFCFE !important;
+    border-color: #2A2A2A !important;
+}
+
+/* Dark mode: Target elements with light/white backgrounds in grid layouts */
+.dark div[style*="display: grid"]>*,
+.dark div[style*="display: flex"]>* {
+    background-color: #1A1A1A !important;
+    color: #FAFCFE !important;
+    border-color: #2A2A2A !important;
 }

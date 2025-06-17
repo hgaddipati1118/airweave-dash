@@ -48,17 +48,31 @@ This connector uses **OAuth 2.0 with refresh token**.
 Dropbox authentication credentials schema.
 <ParamField
   path="client_id"
-  type="str"
-  required={true}
+  type="Optional[str]"
+  required={false}
 >
   The OAuth client ID for your Dropbox app
 </ParamField>
 <ParamField
   path="client_secret"
+  type="Optional[str]"
+  required={false}
+>
+  The OAuth client secret for your Dropbox app
+</ParamField>
+<ParamField
+  path="refresh_token"
   type="str"
   required={true}
 >
-  The OAuth client secret for your Dropbox app
+  The refresh token for your Dropbox app.
+</ParamField>
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Dropbox app.
 </ParamField>
 </Card>
 

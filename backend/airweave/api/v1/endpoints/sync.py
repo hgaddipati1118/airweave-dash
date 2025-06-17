@@ -1,17 +1,17 @@
 """API endpoints for managing syncs."""
 
 import asyncio
+import json
 from typing import AsyncGenerator, List, Optional, Union
 from uuid import UUID
 
-from fastapi import BackgroundTasks, Body, Depends, HTTPException, Query, Request
+from fastapi import BackgroundTasks, Body, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from airweave import crud, schemas
 from airweave.api import deps
 from airweave.api.router import TrailingSlashRouter
-from airweave.core.config import settings
 from airweave.core.logging import logger
 from airweave.core.sync_service import sync_service
 from airweave.platform.sync.pubsub import sync_pubsub
@@ -255,61 +255,71 @@ async def get_sync_job(
 @router.get("/job/{job_id}/subscribe")
 async def subscribe_sync_job(
     job_id: UUID,
-    request: Request,
-    db: AsyncSession = Depends(deps.get_db),
+    user: schemas.User = Depends(deps.get_user),  # Standard dependency injection
 ) -> StreamingResponse:
     """Server-Sent Events (SSE) endpoint to subscribe to a sync job's progress.
 
     Args:
     -----
         job_id: The ID of the job to subscribe to
-        request: The request object
-        db: The database session
+        user: The authenticated user (from standard dependency injection)
 
     Returns:
     --------
         StreamingResponse: The streaming response
     """
-    # Authenticate user if auth is enabled
-    if settings.AUTH_ENABLED:
-        token = request.query_params.get("token")
-        if not token:
-            logger.warning("SSE connection attempt without token")
-            raise HTTPException(status_code=401, detail="Missing authentication token")
+    logger.info(f"SSE sync subscription authenticated for user: {user.id}, job: {job_id}")
 
-        # Authenticate the user from token parameter
-        from airweave.api.deps import get_user_from_token
+    # Track active SSE connections
+    connection_id = f"{user.id}:{job_id}:{asyncio.get_event_loop().time()}"
 
-        user = await get_user_from_token(token, db)
-        if not user:
-            logger.warning(f"SSE connection with invalid token: {token[:10]}...")
-            raise HTTPException(status_code=401, detail="Invalid authentication token")
-
-        logger.info(f"SSE sync subscription authenticated for user: {user.id}, job: {job_id}")
-
-    # Get queue from service
-    queue = await sync_service.subscribe_to_sync_job(job_id=job_id)
+    # Get a new pubsub instance subscribed to this job
+    pubsub = await sync_pubsub.subscribe(job_id)
 
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
-            while True:
-                try:
-                    update = await queue.get()
-                    # Proper SSE format requires each message to start with "data: "
-                    # and end with two newlines
-                    yield f"data: {update.model_dump_json()}\n\n"
-                except asyncio.CancelledError:
-                    break
+            # Send initial connection event
+            yield f"data: {json.dumps({'type': 'connected', 'job_id': str(job_id)})}\n\n"
+
+            # Send heartbeat every 30 seconds to keep connection alive
+            last_heartbeat = asyncio.get_event_loop().time()
+            heartbeat_interval = 30  # seconds
+
+            async for message in pubsub.listen():
+                # Check if we need to send a heartbeat
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_heartbeat > heartbeat_interval:
+                    yield 'data: {"type": "heartbeat"}\n\n'
+                    last_heartbeat = current_time
+
+                if message["type"] == "message":
+                    # Parse and forward the sync progress update
+                    yield f"data: {message['data']}\n\n"
+                elif message["type"] == "subscribe":
+                    # Log subscription confirmation
+                    logger.info(f"SSE subscribed to job {job_id} for connection {connection_id}")
+
+        except asyncio.CancelledError:
+            logger.info(f"SSE connection cancelled for job {job_id}, connection: {connection_id}")
+        except Exception as e:
+            logger.error(f"SSE error for job {job_id}: {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         finally:
-            sync_pubsub.unsubscribe(job_id, queue)
+            # Clean up when SSE connection closes
+            try:
+                await pubsub.close()
+            except Exception as e:
+                logger.warning(f"Error closing pubsub for job {job_id}: {e}")
 
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Important for nginx
+            "X-Accel-Buffering": "no",  # Disable Nginx buffering
+            "Content-Type": "text/event-stream",
+            "Access-Control-Allow-Origin": "*",  # Adjust for your CORS needs
         },
     )
 

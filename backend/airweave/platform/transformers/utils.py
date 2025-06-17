@@ -3,9 +3,11 @@
 import tiktoken
 
 # Max chunk size for embedding models (e.g. OpenAI's text-embedding-ada-002)
-MAX_CHUNK_SIZE = 8191
+# While OpenAI allows up to 8191 tokens per text, we use a safer limit
+# to avoid batch processing errors and account for overhead
+MAX_CHUNK_SIZE = 7500  # Reduced from 8191 for safer batch processing
 MARGIN_OF_ERROR = 250
-METADATA_SIZE = 1000
+METADATA_SIZE = 1200
 
 
 def count_tokens(text: str) -> int:

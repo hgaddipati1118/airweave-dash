@@ -1,5 +1,7 @@
 """Auth config."""
 
+from typing import Optional
+
 from pydantic import Field, field_validator
 
 from airweave.platform.configs._base import BaseConfig
@@ -123,6 +125,29 @@ class AsanaAuthConfig(AuthConfig):
     )
 
 
+class BitbucketAuthConfig(AuthConfig):
+    """Bitbucket authentication credentials schema."""
+
+    username: str = Field(
+        title="Username",
+        description="Your Bitbucket username",
+    )
+    app_password: str = Field(
+        title="App Password",
+        description="Bitbucket app password with repository read permissions",
+    )
+    workspace: str = Field(
+        title="Workspace",
+        description="Bitbucket workspace slug (e.g., 'my-workspace')",
+    )
+    repo_slug: Optional[str] = Field(
+        default="",
+        title="Repository Slug",
+        description="Specific repository to sync (e.g., 'my-repo'). "
+        "If empty, syncs all repositories in the workspace.",
+    )
+
+
 class ClickUpAuthConfig(AuthConfig):
     """Clickup authentication credentials schema."""
 
@@ -145,11 +170,13 @@ class ConfluenceAuthConfig(AuthConfig):
 class DropboxAuthConfig(AuthConfig):
     """Dropbox authentication credentials schema."""
 
-    client_id: str = Field(
-        title="Client ID", description="The OAuth client ID for your Dropbox app"
+    client_id: Optional[str] = Field(
+        default=None, title="Client ID", description="The OAuth client ID for your Dropbox app"
     )
-    client_secret: str = Field(
-        title="Client Secret", description="The OAuth client secret for your Dropbox app"
+    client_secret: Optional[str] = Field(
+        default=None,
+        title="Client Secret",
+        description="The OAuth client secret for your Dropbox app",
     )
     refresh_token: str = Field(
         title="Refresh Token", description="The refresh token for your Dropbox app."
@@ -203,9 +230,13 @@ class GitHubAuthConfig(AuthConfig):
 class GmailAuthConfig(AuthConfig):
     """Gmail authentication credentials schema."""
 
-    client_id: str = Field(title="Client ID", description="The OAuth client ID for your Google app")
-    client_secret: str = Field(
-        title="Client Secret", description="The OAuth client secret for your Google app"
+    client_id: Optional[str] = Field(
+        default=None, title="Client ID", description="The OAuth client ID for your Google app"
+    )
+    client_secret: Optional[str] = Field(
+        default=None,
+        title="Client Secret",
+        description="The OAuth client secret for your Google app",
     )
     refresh_token: str = Field(
         title="Refresh Token", description="The refresh token for your Gmail app."
@@ -218,9 +249,13 @@ class GmailAuthConfig(AuthConfig):
 class GoogleCalendarAuthConfig(AuthConfig):
     """Google Calendar authentication credentials schema."""
 
-    client_id: str = Field(title="Client ID", description="The OAuth client ID for your Google app")
-    client_secret: str = Field(
-        title="Client Secret", description="The OAuth client secret for your Google app"
+    client_id: Optional[str] = Field(
+        default=None, title="Client ID", description="The OAuth client ID for your Google app"
+    )
+    client_secret: Optional[str] = Field(
+        default=None,
+        title="Client Secret",
+        description="The OAuth client secret for your Google app",
     )
     refresh_token: str = Field(
         title="Refresh Token", description="The refresh token for your Google Calendar app."
@@ -233,9 +268,13 @@ class GoogleCalendarAuthConfig(AuthConfig):
 class GoogleDriveAuthConfig(AuthConfig):
     """Google Drive authentication credentials schema."""
 
-    client_id: str = Field(title="Client ID", description="The OAuth client ID for your Google app")
-    client_secret: str = Field(
-        title="Client Secret", description="The OAuth client secret for your Google app"
+    client_id: Optional[str] = Field(
+        default=None, title="Client ID", description="The OAuth client ID for your Google app"
+    )
+    client_secret: Optional[str] = Field(
+        default=None,
+        title="Client Secret",
+        description="The OAuth client secret for your Google app",
     )
     refresh_token: str = Field(
         title="Refresh Token", description="The refresh token for your Google Drive app."
@@ -337,6 +376,17 @@ class OutlookMailAuthConfig(AuthConfig):
     )
     access_token: str = Field(
         title="Access Token", description="The access token for your Outlook Mail app."
+    )
+
+
+class CTTIAuthConfig(AuthConfig):
+    """CTTI Clinical Trials authentication credentials schema."""
+
+    username: str = Field(
+        title="Username", description="Username for the AACT Clinical Trials database"
+    )
+    password: str = Field(
+        title="Password", description="Password for the AACT Clinical Trials database"
     )
 
 

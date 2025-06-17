@@ -159,3 +159,79 @@ pytest backend/tests/e2e/
 
 - Changes to the Dockerfile or dependencies still require a full rebuild
 - The hot reloading only works for Python code, not for other files like static assets
+
+# E2E Tests
+
+This directory contains end-to-end tests for the Airweave backend.
+
+## Overview
+
+E2E tests verify the complete functionality of the system by testing API endpoints with a real database and all dependencies running.
+
+## Structure
+
+```
+e2e/
+├── conftest.py          # Shared fixtures and configuration
+├── test_auth.py         # Authentication flow tests
+├── test_connections.py  # Source/destination connection tests
+├── test_sync.py         # Sync job tests
+└── test_search.py       # Search functionality tests
+```
+
+## Running Tests
+
+### Prerequisites
+
+1. Docker and Docker Compose installed
+2. Python environment with test dependencies
+
+### Running All E2E Tests
+
+```bash
+# From backend directory
+pytest tests/e2e -v
+```
+
+### Running Specific Tests
+
+```bash
+# Run a specific test file
+pytest tests/e2e/test_auth.py -v
+
+# Run a specific test
+pytest tests/e2e/test_auth.py::test_login -v
+```
+
+## Test Environment
+
+- **Location**: `docker/docker-compose.test.yml`
+- **Ports**: Uses different ports (9xxx) to avoid conflicts
+- **Database**: Isolated PostgreSQL instance
+- **Services**: All required services (Redis, Qdrant, etc.)
+
+## Writing New Tests
+
+1. Create a new test file in the `e2e` directory
+2. Import the required fixtures from `conftest.py`
+3. Write tests using the `async_client` fixture
+4. Use realistic data and test complete workflows
+
+Example:
+```python
+async def test_create_connection(async_client: AsyncClient, auth_headers: dict):
+    response = await async_client.post(
+        "/api/v1/connections",
+        json={"name": "Test Connection", "type": "github"},
+        headers=auth_headers
+    )
+    assert response.status_code == 201
+```
+
+## Best Practices
+
+- Test complete user workflows, not just individual endpoints
+- Use realistic test data
+- Clean up test data after each test
+- Test error cases and edge conditions
+- Keep tests independent and idempotent

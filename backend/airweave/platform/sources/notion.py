@@ -73,6 +73,7 @@ class NotionSource(BaseSource):
             "max_page_depth": 0,
         }
         logger.info("Initialized comprehensive Notion source with content aggregation")
+        self._client_ref = None
 
     async def _wait_for_rate_limit(self):
         """Implement rate limiting for Notion API requests."""
@@ -282,18 +283,13 @@ class NotionSource(BaseSource):
                         )
                     ]
 
-                    # Create comprehensive page entity with aggregated content
-                    page_entity, files = await self._create_comprehensive_page_entity(
-                        client, page, breadcrumbs, database_id, schema
+                    # Always use lazy loading for better performance
+                    page_entity = await self._create_lazy_page_entity(
+                        page, breadcrumbs, database_id, schema
                     )
                     yield page_entity
 
-                    # Process and yield file entities with downloaded files
-                    for file_entity in files:
-                        processed_file = await self._process_and_yield_file(file_entity)
-                        if processed_file:
-                            yield processed_file
-
+                    # Don't yield files separately - they'll be handled during materialization
                     self._processed_pages.add(page_id)
 
                 except Exception as e:
@@ -355,18 +351,11 @@ class NotionSource(BaseSource):
                 # Build breadcrumbs for standalone pages
                 breadcrumbs = await self._build_page_breadcrumbs(client, full_page)
 
-                # Create comprehensive page entity with aggregated content
-                page_entity, files = await self._create_comprehensive_page_entity(
-                    client, full_page, breadcrumbs
-                )
+                # Always use lazy loading for better performance
+                page_entity = await self._create_lazy_page_entity(full_page, breadcrumbs)
                 yield page_entity
 
-                # Process and yield file entities with downloaded files
-                for file_entity in files:
-                    processed_file = await self._process_and_yield_file(file_entity)
-                    if processed_file:
-                        yield processed_file
-
+                # Don't yield files separately - they'll be handled during materialization
                 self._processed_pages.add(page_id)
 
             except Exception as e:
@@ -428,18 +417,14 @@ class NotionSource(BaseSource):
                                 )
                             ]
 
-                            # Create comprehensive page entity
-                            page_entity, files = await self._create_comprehensive_page_entity(
-                                client, page, page_breadcrumbs, database_id, schema
+                            # Always use lazy loading for better performance
+                            page_entity = await self._create_lazy_page_entity(
+                                page, page_breadcrumbs, database_id, schema
                             )
                             yield page_entity
 
-                            # Process and yield file entities with downloaded files
-                            for file_entity in files:
-                                processed_file = await self._process_and_yield_file(file_entity)
-                                if processed_file:
-                                    yield processed_file
-
+                            # Don't yield files separately - they'll be handled
+                            # during materialization
                             self._processed_pages.add(page_id)
 
                         except Exception as e:
@@ -1154,6 +1139,8 @@ class NotionSource(BaseSource):
 
         try:
             async with httpx.AsyncClient() as client:
+                self._client_ref = client  # Store for lazy operations
+
                 # Phase 1: Top-Level Discovery
                 discovered = await self._discover_all_objects(client)
 
@@ -1259,3 +1246,220 @@ class NotionSource(BaseSource):
         except Exception as e:
             logger.error(f"Error processing pre-signed file {file_entity.name}: {e}")
             return None
+
+    async def _create_lazy_page_entity(
+        self,
+        page: dict,
+        breadcrumbs: List[Breadcrumb],
+        database_id: Optional[str] = None,
+        database_schema: Optional[dict] = None,
+    ) -> NotionPageEntity:
+        """Create lazy entity with self-contained operations."""
+        page_id = page["id"]
+        parent = page.get("parent", {})
+
+        logger.info(f"🦴 LAZY_SKELETON Creating skeleton entity for page: {page_id}")
+
+        # Create entity with only immediately available data
+        entity = NotionPageEntity(
+            entity_id=page_id,
+            page_id=page_id,
+            title=self._extract_page_title(page),
+            parent_id=parent.get("page_id") or parent.get("database_id") or "",
+            parent_type=parent.get("type", "workspace"),
+            breadcrumbs=breadcrumbs,
+            properties=page.get("properties", {}),
+            url=page.get("url", ""),
+            icon=page.get("icon"),
+            cover=page.get("cover"),
+            archived=page.get("archived", False),
+            in_trash=page.get("in_trash", False),
+            created_time=self._parse_datetime(page.get("created_time")),
+            last_edited_time=self._parse_datetime(page.get("last_edited_time")),
+            # Lazy fields - will be populated during materialization
+            content=None,
+            content_blocks_count=0,
+            max_depth=0,
+            property_entities=[],
+            files=[],
+        )
+
+        # Add lazy operation for content aggregation
+        # Pass all necessary data for self-contained execution
+        entity.add_lazy_operation(
+            "aggregate_content",
+            self._create_content_fetcher(
+                access_token=self.access_token,
+                rate_limit_config={
+                    "requests_per_second": self.RATE_LIMIT_REQUESTS,
+                    "period": self.RATE_LIMIT_PERIOD,
+                    "timeout": self.TIMEOUT_SECONDS,
+                    "max_retries": self.MAX_RETRIES,
+                },
+            ),
+            page_id,
+            breadcrumbs,
+        )
+
+        logger.info(f"🔄 LAZY_OPERATION Added content aggregation operation for page: {page_id}")
+
+        # If it's a database page, add property extraction operation
+        if database_id and database_schema:
+            entity.add_lazy_operation(
+                "extract_properties",
+                self._create_property_extractor(self.access_token),
+                page,
+                database_id,
+                database_schema,
+            )
+            logger.info(
+                f"🔄 LAZY_OPERATION Added property extraction operation for page: {page_id}"
+            )
+
+        return entity
+
+    def _create_content_fetcher(self, access_token: str, rate_limit_config: dict):
+        """Create a self-contained content fetcher that creates its own client."""
+
+        async def fetch_content(page_id: str, breadcrumbs: List[Breadcrumb]) -> dict:
+            """Fetch page content with a new client instance."""
+            async with httpx.AsyncClient() as client:
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Notion-Version": "2022-06-28",
+                }
+
+                # Create rate limiter
+                rate_limiter = self._create_rate_limiter(rate_limit_config)
+
+                # Create request helper
+                async def make_request(method: str, url: str, **kwargs):
+                    await rate_limiter()
+                    response = await getattr(client, method.lower())(url, headers=headers, **kwargs)
+                    response.raise_for_status()
+                    return response.json()
+
+                # Fetch all blocks and aggregate content
+                result = await self._fetch_and_aggregate_blocks(make_request, page_id, breadcrumbs)
+
+                return result
+
+        return fetch_content
+
+    def _create_rate_limiter(self, rate_limit_config: dict):
+        """Create a rate limiter function."""
+        request_times = []
+        lock = asyncio.Lock()
+
+        async def rate_limit():
+            async with lock:
+                current_time = asyncio.get_event_loop().time()
+                request_times[:] = [
+                    t for t in request_times if current_time - t < rate_limit_config["period"]
+                ]
+
+                if len(request_times) >= rate_limit_config["requests_per_second"]:
+                    sleep_time = request_times[0] + rate_limit_config["period"] - current_time
+                    if sleep_time > 0:
+                        await asyncio.sleep(sleep_time)
+
+                request_times.append(asyncio.get_event_loop().time())
+
+        return rate_limit
+
+    async def _fetch_and_aggregate_blocks(
+        self, make_request, page_id: str, breadcrumbs: List[Breadcrumb]
+    ) -> dict:
+        """Fetch blocks and aggregate content."""
+        content_parts = []
+        files = []
+        blocks_count = 0
+        max_depth = 0
+
+        # Create notion instance for formatting
+        notion_source = NotionSource()
+
+        async def fetch_blocks(block_id: str, depth: int = 0):
+            nonlocal blocks_count, max_depth
+
+            url = f"https://api.notion.com/v1/blocks/{block_id}/children"
+            has_more = True
+            start_cursor = None
+
+            while has_more:
+                params = {"start_cursor": start_cursor} if start_cursor else {}
+
+                try:
+                    response = await make_request("GET", url, params=params)
+                    blocks = response.get("results", [])
+
+                    for block in blocks:
+                        blocks_count += 1
+                        max_depth = max(max_depth, depth)
+
+                        # Format block content
+                        block_result = await notion_source._format_block_content(
+                            block, depth, breadcrumbs
+                        )
+
+                        if block_result["content"]:
+                            content_parts.append(block_result["content"])
+
+                        files.extend(block_result["files"])
+
+                        # Process children if present
+                        if block.get("has_children", False):
+                            await fetch_blocks(block["id"], depth + 1)
+
+                    has_more = response.get("has_more", False)
+                    start_cursor = response.get("next_cursor")
+
+                except Exception as e:
+                    logger.error(f"Error fetching blocks for {block_id}: {str(e)}")
+                    break
+
+        # Start fetching from the page
+        await fetch_blocks(page_id)
+
+        return {
+            "content": "\n\n".join(filter(None, content_parts)),
+            "blocks_count": blocks_count,
+            "max_depth": max_depth,
+            "files": files,
+        }
+
+    def _create_property_extractor(self, access_token: str):
+        """Create a self-contained property extractor."""
+
+        async def extract_properties(
+            page: dict, database_id: str, database_schema: dict
+        ) -> List[NotionPropertyEntity]:
+            """Extract properties with proper entity creation."""
+            # Create notion instance for property formatting
+            notion_source = NotionSource()
+
+            page_id = page["id"]
+            page_properties = page.get("properties", {})
+            schema_properties = database_schema.get("properties", {})
+
+            property_entities = []
+
+            for prop_name, prop_value in page_properties.items():
+                if prop_name in schema_properties:
+                    schema_prop = schema_properties[prop_name]
+
+                    try:
+                        # Use the existing create_property_entity method
+                        property_entity = notion_source._create_property_entity(
+                            prop_name, prop_value, schema_prop, page_id, database_id
+                        )
+                        property_entities.append(property_entity)
+
+                    except Exception as e:
+                        logger.warning(
+                            f"Error processing property {prop_name} for page {page_id}: {str(e)}"
+                        )
+
+            return property_entities
+
+        return extract_properties

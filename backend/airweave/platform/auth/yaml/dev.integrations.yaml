@@ -9,6 +9,9 @@ integrations:
     content_type: "application/x-www-form-urlencoded"
     client_credential_location: "body"
 
+  bitbucket:
+    auth_type: "config_class"
+
   confluence:
     auth_type: "oauth2_with_refresh_rotating"
     url: "https://auth.atlassian.com/authorize"

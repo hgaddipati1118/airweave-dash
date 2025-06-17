@@ -1,10 +1,15 @@
-"""Pubsub for sync jobs."""
+"""Pubsub for sync jobs using Redis backend."""
 
 import asyncio
-from typing import Optional
+import platform
 from uuid import UUID
 
+import redis.asyncio as redis
 from pydantic import BaseModel
+
+from airweave.core.config import settings
+from airweave.core.logging import logger
+from airweave.core.redis_client import redis_client
 
 
 class SyncProgressUpdate(BaseModel):
@@ -19,77 +24,97 @@ class SyncProgressUpdate(BaseModel):
     kept: int = 0
     skipped: int = 0
     entities_encountered: dict[str, int] = {}
-    is_complete: bool = False  # Add completion flag
-    is_failed: bool = False  # Add failure flag
+    is_complete: bool = False
+    is_failed: bool = False
 
 
-class SyncJobTopic:
-    """Represents an active sync job's message stream."""
-
-    def __init__(self, job_id: UUID):
-        """Initialize topic."""
-        self.job_id = job_id
-        self.queues: list[asyncio.Queue] = []
-        self.latest_update: Optional[SyncProgressUpdate] = None
-
-    async def publish(self, update: SyncProgressUpdate) -> None:
-        """Publish an update to all subscribers."""
-        self.latest_update = update
-        for queue in self.queues:
-            await queue.put(update)
-
-    async def add_subscriber(self) -> asyncio.Queue:
-        """Add a new subscriber and send them the latest update if available."""
-        queue = asyncio.Queue()
-        self.queues.append(queue)
-        if self.latest_update:
-            await queue.put(self.latest_update)
-        return queue
-
-    def remove_subscriber(self, queue: asyncio.Queue) -> None:
-        """Remove a subscriber."""
-        if queue in self.queues:
-            self.queues.remove(queue)
+PUBLISH_THRESHOLD = 3
 
 
 class SyncPubSub:
-    """Manages sync job topics and their subscribers."""
+    """Manages sync job pubsub using Redis."""
 
-    def __init__(self) -> None:
-        """Initialize the SyncPubSub instance."""
-        self.topics: dict[UUID, SyncJobTopic] = {}
+    def _channel_name(self, job_id: UUID) -> str:
+        """Generate channel name for a sync job.
 
-    def get_or_create_topic(self, job_id: UUID) -> SyncJobTopic:
-        """Get an existing topic or create a new one."""
-        if job_id not in self.topics:
-            self.topics[job_id] = SyncJobTopic(job_id)
-        return self.topics[job_id]
+        Args:
+            job_id: The sync job ID.
 
-    def remove_topic(self, job_id: UUID) -> None:
-        """Remove a topic when sync is complete."""
-        if job_id in self.topics:
-            del self.topics[job_id]
+        Returns:
+            str: The channel name.
+        """
+        return f"sync_job:{job_id}"
 
     async def publish(self, job_id: UUID, update: SyncProgressUpdate) -> None:
-        """Publish an update to a specific job topic."""
-        topic = self.get_or_create_topic(job_id)
-        await topic.publish(update)
-        # If the update indicates completion or failure, schedule topic removal
-        if update.is_complete or update.is_failed:
-            self.remove_topic(job_id)
+        """Publish an update to a sync job channel.
 
-    async def subscribe(self, job_id: UUID) -> asyncio.Queue:
-        """Subscribe to a job's updates, creating the topic if it doesn't exist."""
-        topic = self.get_or_create_topic(job_id)
-        return await topic.add_subscriber()
+        Note: Redis channels are created on-demand when someone subscribes.
+        Publishing to a non-existent channel (no subscribers) is a no-op.
 
-    def unsubscribe(self, job_id: UUID, queue: asyncio.Queue) -> None:
-        """Remove a subscriber from a topic."""
-        if job_id in self.topics:
-            self.topics[job_id].remove_subscriber(queue)
+        Args:
+            job_id: The sync job ID.
+            update: The progress update to publish.
+        """
+        channel = self._channel_name(job_id)
+        message = update.model_dump_json()
 
+        subscribers = await redis_client.publish(channel, message)
 
-PUBLISH_THRESHOLD = 5
+        if subscribers > 0:
+            logger.info(f"Published update to {subscribers} subscribers for job {job_id}")
+
+    async def subscribe(self, job_id: UUID) -> redis.client.PubSub:
+        """Create a new pubsub instance and subscribe to a sync job's updates.
+
+        Args:
+            job_id: The sync job ID to subscribe to.
+
+        Returns:
+            redis.client.PubSub: A new Redis pubsub instance subscribed to this job's channel.
+        """
+        channel = self._channel_name(job_id)
+
+        # Get socket keepalive options based on OS
+        if platform.system() == "Darwin":
+            socket_keepalive_options = {}
+        else:
+            # Use the correct Linux TCP keepalive constants
+            import socket
+
+            if hasattr(socket, "TCP_KEEPIDLE"):
+                socket_keepalive_options = {
+                    socket.TCP_KEEPIDLE: 60,  # Start keepalive after 60s idle
+                    socket.TCP_KEEPINTVL: 10,  # Interval between keepalive probes
+                    socket.TCP_KEEPCNT: 6,  # Number of keepalive probes
+                }
+            else:
+                socket_keepalive_options = {}
+
+        # Build Redis URL with authentication
+        if settings.REDIS_PASSWORD:
+            redis_url = f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+        else:
+            redis_url = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+
+        # Create a new Redis client directly for pubsub to avoid connection pool issues
+        # This is a workaround for async pubsub issues in Docker environments
+        pubsub_redis = await redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_keepalive=True,
+            socket_connect_timeout=5,
+            # Don't set socket_timeout for pubsub connections - they need to stay open
+            socket_keepalive_options=socket_keepalive_options,
+        )
+
+        # Create pubsub instance
+        pubsub = pubsub_redis.pubsub()
+
+        # Subscribe to the specific channel
+        await pubsub.subscribe(channel)
+
+        logger.info(f"Created new pubsub subscription for sync job {job_id}")
+        return pubsub
 
 
 class SyncProgress:
@@ -101,23 +126,43 @@ class SyncProgress:
         self.stats = SyncProgressUpdate()
         self._last_published = 0
         self._publish_threshold = PUBLISH_THRESHOLD
+        # CRITICAL FIX: Add async lock to prevent race conditions
+        self._lock = asyncio.Lock()
 
     def __getattr__(self, name: str) -> int:
         """Get counter value for any stat."""
         return getattr(self.stats, name)
 
     async def increment(self, stat_name: str, amount: int = 1) -> None:
-        """Increment a counter and trigger update if threshold reached."""
-        current_value = getattr(self.stats, stat_name, 0)
-        setattr(self.stats, stat_name, current_value + amount)
+        """Increment a counter and trigger update if threshold reached.
 
-        total_ops = sum(
-            [self.stats.inserted, self.stats.updated, self.stats.deleted, self.stats.kept]
-        )
+        Uses async lock to prevent race conditions from concurrent workers.
+        """
+        async with self._lock:  # CRITICAL FIX: Synchronize access
+            current_value = getattr(self.stats, stat_name, 0)
+            setattr(self.stats, stat_name, current_value + amount)
 
-        if total_ops - self._last_published >= self._publish_threshold:
-            await self._publish()
-            self._last_published = total_ops
+            # Include ALL operations in threshold calculation (including skipped)
+            total_ops = sum(
+                [
+                    self.stats.inserted,
+                    self.stats.updated,
+                    self.stats.deleted,
+                    self.stats.kept,
+                    self.stats.skipped,
+                ]
+            )
+
+            # Check if we should publish
+            if total_ops - self._last_published >= self._publish_threshold:
+                logger.info(f"Progress threshold reached: {total_ops} total ops, publishing update")
+                await self._publish()
+                self._last_published = total_ops
+            else:
+                logger.debug(
+                    f"Progress: {stat_name}={current_value + amount}, total={total_ops}, "
+                    f"threshold={self._publish_threshold}"
+                )
 
     async def _publish(self) -> None:
         """Publish current progress."""
@@ -125,9 +170,10 @@ class SyncProgress:
 
     async def finalize(self, is_complete: bool = True) -> None:
         """Publish final progress."""
-        self.stats.is_complete = is_complete
-        self.stats.is_failed = not is_complete
-        await self._publish()
+        async with self._lock:  # Ensure finalize is also synchronized
+            self.stats.is_complete = is_complete
+            self.stats.is_failed = not is_complete
+            await self._publish()
 
     def to_dict(self) -> dict:
         """Convert progress to a dictionary."""
@@ -137,11 +183,11 @@ class SyncProgress:
         self, entities_encountered: dict[str, set[str]]
     ) -> None:
         """Update the entities encountered tracking."""
-        self.stats.entities_encountered = {
-            entity_type: len(entity_ids) for entity_type, entity_ids in entities_encountered.items()
-        }
-        # We don't publish here to avoid too frequent updates
-        # Regular increment will trigger publishing based on threshold
+        async with self._lock:  # Synchronize this as well
+            self.stats.entities_encountered = {
+                entity_type: len(entity_ids)
+                for entity_type, entity_ids in entities_encountered.items()
+            }
 
 
 # Create a global instance for the entire app

@@ -7,15 +7,47 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from airweave.core.config import settings
 
+# Connection Pool Sizing Strategy:
+# - With proper connection management, workers only hold DB connections for milliseconds
+# - Database operations: entity lookup (~0.1s), insert/update (~0.1s)
+# - Even with 100 concurrent workers, only a few need connections at the same time
+# - Pool size 15 + overflow 15 = 30 total connections available
+# - This efficiently handles bursts while preventing connection exhaustion
+# - Multiple sync jobs can run simultaneously without issues
+
+# Determine pool size based on worker count
+worker_count = getattr(settings, "SYNC_MAX_WORKERS", 100)
+# With on-demand connections: pool_size = workers * 0.15 (only 15% need DB at once)
+POOL_SIZE = min(15, max(10, int(worker_count * 0.15)))
+MAX_OVERFLOW = POOL_SIZE  # Allow doubling during spikes
+
+# Connection Pool Timeout Behavior:
+# - pool_timeout=30: Wait up to 30 seconds for a connection to become available
+# - If all connections are busy for 30+ seconds, raises TimeoutError
+# - This prevents unbounded queueing and alerts to connection leaks
+#
+# Alternative configurations:
+# - pool_timeout=0: Don't wait at all, fail immediately if no connections
+# - pool_timeout=None: Wait forever (NOT RECOMMENDED - can cause deadlocks)
+
 async_engine = create_async_engine(
     str(settings.SQLALCHEMY_ASYNC_DATABASE_URI),
-    pool_size=50,
-    max_overflow=10,
+    pool_size=POOL_SIZE,
+    max_overflow=MAX_OVERFLOW,
     pool_pre_ping=True,
-    pool_recycle=300,
-    pool_timeout=60,
+    pool_recycle=300,  # Recycle connections after 5 minutes
+    pool_timeout=30,  # Wait up to 30 seconds for a connection
     isolation_level="READ COMMITTED",
+    # Note: async engines automatically use AsyncAdaptedQueuePool
+    # Settings to prevent connection buildup:
+    connect_args={
+        "server_settings": {
+            "idle_in_transaction_session_timeout": "60000",  # Kill idle transactions after 60s
+        },
+        "command_timeout": 60,
+    },
 )
+
 AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=async_engine)
 
 

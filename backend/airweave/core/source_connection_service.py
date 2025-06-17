@@ -376,15 +376,27 @@ class SourceConnectionService:
             source_connection = schemas.SourceConnection.from_orm_with_collection_mapping(
                 source_connection
             )
-            sync_job = schemas.SyncJob.model_validate(sync_job, from_attributes=True)
 
-            # Update the source connection status
-            source_connection.auth_fields = "********"  # Hide auth fields by default
-            source_connection.status = SourceConnectionStatus.IN_PROGRESS
-            source_connection.latest_sync_job_status = sync_job.status
-            source_connection.latest_sync_job_id = sync_job.id
-            source_connection.latest_sync_job_started_at = sync_job.started_at
-            source_connection.latest_sync_job_completed_at = sync_job.completed_at
+            # Only validate sync_job if it exists (when sync_immediately=True)
+            if sync_job is not None:
+                sync_job = schemas.SyncJob.model_validate(sync_job, from_attributes=True)
+
+                # Update the source connection status with sync job info
+                source_connection.status = SourceConnectionStatus.IN_PROGRESS
+                source_connection.latest_sync_job_status = sync_job.status
+                source_connection.latest_sync_job_id = sync_job.id
+                source_connection.latest_sync_job_started_at = sync_job.started_at
+                source_connection.latest_sync_job_completed_at = sync_job.completed_at
+            else:
+                # No sync job created (sync_immediately=False)
+                source_connection.status = SourceConnectionStatus.ACTIVE
+                source_connection.latest_sync_job_status = None
+                source_connection.latest_sync_job_id = None
+                source_connection.latest_sync_job_started_at = None
+                source_connection.latest_sync_job_completed_at = None
+
+            # Hide auth fields by default
+            source_connection.auth_fields = "********"
 
         return source_connection, sync_job
 

@@ -9,7 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from airweave import crud, schemas
 from airweave.db.unit_of_work import UnitOfWork
-from airweave.platform.entities._base import BaseEntity, ChunkEntity, FileEntity, ParentEntity
+from airweave.platform.entities._base import (
+    BaseEntity,
+    ChunkEntity,
+    FileEntity,
+    ParentEntity,
+    WebEntity,
+)
+from airweave.platform.entities.web import WebFileEntity
 from airweave.platform.locator import resource_locator
 from airweave.schemas.dag import DagEdgeCreate, DagNodeCreate, NodeType, SyncDagCreate
 
@@ -44,6 +51,9 @@ class DagService:
         # Get file chunker transformer
         file_chunker = await self._get_file_chunker(db)
 
+        # Get web fetcher transformer
+        web_fetcher = await self._get_web_fetcher(db)
+
         # Get source connection and entity definitions
         (
             source,
@@ -73,6 +83,7 @@ class DagService:
             entity_definitions,
             processed_entity_ids,
             file_chunker,
+            web_fetcher,
             source_node_id,
             destination_node_ids,
             nodes,
@@ -123,6 +134,7 @@ class DagService:
         entity_definitions,
         processed_entity_ids,
         file_chunker,
+        web_fetcher,
         source_node_id,
         destination_node_ids,
         nodes,
@@ -147,6 +159,24 @@ class DagService:
                     db=db,
                     entity_class=entity_class,
                     entity_definition=entity_definition,
+                    file_chunker=file_chunker,
+                    source_node_id=source_node_id,
+                    destination_node_id=destination_node_id,
+                    nodes=nodes,
+                    edges=edges,
+                    processed_entity_ids=processed_entity_ids,
+                )
+            # Handle web entities
+            elif issubclass(entity_class, WebEntity):
+                destination_node_id = destination_node_ids[0] if destination_node_ids else None
+                if not destination_node_id:
+                    raise ValueError("No destination node ID available for web entity processing")
+
+                await self._process_web_entity(
+                    db=db,
+                    entity_class=entity_class,
+                    entity_definition=entity_definition,
+                    web_fetcher=web_fetcher,
                     file_chunker=file_chunker,
                     source_node_id=source_node_id,
                     destination_node_id=destination_node_id,
@@ -295,6 +325,17 @@ class DagService:
             raise Exception("No file chunker found")
         return file_chunker
 
+    async def _get_web_fetcher(self, db: AsyncSession) -> schemas.Transformer:
+        """Get the web fetcher transformer."""
+        transformers = await crud.transformer.get_all(db)
+        web_fetcher = next(
+            (t for t in transformers if t.method_name == "web_fetcher"),
+            None,
+        )
+        if not web_fetcher:
+            raise Exception("No web fetcher found")
+        return web_fetcher
+
     async def _get_source_and_entity_definitions(
         self, db: AsyncSession, sync: schemas.Sync, current_user: schemas.User
     ) -> Tuple[schemas.Source, schemas.Connection, Dict]:
@@ -438,7 +479,7 @@ class DagService:
         # Create chunk entity node
         chunk_node_id = uuid4()
         nodes.append(
-            DagNodeCreate(
+            DagNodeCreate(  # Default value
                 id=chunk_node_id,
                 type=NodeType.entity,
                 name=chunk_entity_definition.name,
@@ -452,6 +493,154 @@ class DagService:
 
         # File Entity -> File Chunker
         edges.append(DagEdgeCreate(from_node_id=file_node_id, to_node_id=chunker_node_id))
+
+        # File Chunker -> Parent Entity
+        edges.append(DagEdgeCreate(from_node_id=chunker_node_id, to_node_id=parent_node_id))
+
+        # File Chunker -> Chunk Entity
+        edges.append(DagEdgeCreate(from_node_id=chunker_node_id, to_node_id=chunk_node_id))
+
+        # Parent Entity -> Destination
+        edges.append(DagEdgeCreate(from_node_id=parent_node_id, to_node_id=destination_node_id))
+
+        # Chunk Entity -> Destination
+        edges.append(DagEdgeCreate(from_node_id=chunk_node_id, to_node_id=destination_node_id))
+
+    async def _process_web_entity(
+        self,
+        db: AsyncSession,
+        entity_class: Type[WebEntity],
+        entity_definition: schemas.EntityDefinition,
+        web_fetcher: schemas.Transformer,
+        file_chunker: schemas.Transformer,
+        source_node_id: UUID,
+        destination_node_id: UUID,
+        nodes: List[DagNodeCreate],
+        edges: List[DagEdgeCreate],
+        processed_entity_ids: Set[UUID],
+    ) -> None:
+        """Process a web entity and create necessary nodes and edges.
+
+        Flow: WebEntity -> web_fetcher -> FileEntity -> file_chunker -> ParentEntity + ChunkEntity
+        """
+        # For WebEntity, we need to get the FileEntity parent and chunk models
+        # since the web fetcher converts WebEntity -> FileEntity
+        file_entity_class = WebFileEntity
+        parent_entity_class, chunk_entity_class = file_entity_class.create_parent_chunk_models()
+
+        # Get entity definitions for parent and chunk
+        parent_entity_definition = await self._get_entity_definition_for_entity_class(
+            db, parent_entity_class
+        )
+        chunk_entity_definition = await self._get_entity_definition_for_entity_class(
+            db, chunk_entity_class
+        )
+
+        # Get FileEntity definition for the intermediate node
+        file_entity_definition = await self._get_entity_definition_for_entity_class(
+            db, file_entity_class
+        )
+
+        # Validate that we have the necessary entity definitions
+        if (
+            not parent_entity_definition
+            or not chunk_entity_definition
+            or not file_entity_definition
+        ):
+            from airweave.core.logging import logger
+
+            logger.error("Missing entity definitions for FileEntity parent/chunk models")
+            if not parent_entity_definition:
+                logger.error(f"Missing parent entity definition for {parent_entity_class.__name__}")
+            if not chunk_entity_definition:
+                logger.error(f"Missing chunk entity definition for {chunk_entity_class.__name__}")
+            if not file_entity_definition:
+                logger.error(f"Missing file entity definition for {file_entity_class.__name__}")
+            raise ValueError("Missing entity definitions for FileEntity parent/chunk models")
+
+        # Mark parent and chunk entity definitions as processed
+        processed_entity_ids.add(parent_entity_definition.id)
+        processed_entity_ids.add(chunk_entity_definition.id)
+        processed_entity_ids.add(file_entity_definition.id)
+
+        # Create web entity node
+        web_node_id = uuid4()
+        nodes.append(
+            DagNodeCreate(
+                id=web_node_id,
+                type=NodeType.entity,
+                name=entity_definition.name,
+                entity_definition_id=entity_definition.id,
+            )
+        )
+
+        # Create web fetcher transformer node
+        fetcher_node_id = uuid4()
+        nodes.append(
+            DagNodeCreate(
+                id=fetcher_node_id,
+                type=NodeType.transformer,
+                name=web_fetcher.name,
+                transformer_id=web_fetcher.id,
+            )
+        )
+
+        # Create intermediate FileEntity node (output of web_fetcher)
+        file_entity_node_id = uuid4()
+        nodes.append(
+            DagNodeCreate(
+                id=file_entity_node_id,
+                type=NodeType.entity,
+                name=file_entity_definition.name,
+                entity_definition_id=file_entity_definition.id,
+            )
+        )
+
+        # Create file chunker transformer node
+        chunker_node_id = uuid4()
+        nodes.append(
+            DagNodeCreate(
+                id=chunker_node_id,
+                type=NodeType.transformer,
+                name=file_chunker.name,
+                transformer_id=file_chunker.id,
+            )
+        )
+
+        # Create parent chunk node
+        parent_node_id = uuid4()
+        nodes.append(
+            DagNodeCreate(
+                id=parent_node_id,
+                type=NodeType.entity,
+                name=parent_entity_definition.name,
+                entity_definition_id=parent_entity_definition.id,
+            )
+        )
+
+        # Create chunk entity node
+        chunk_node_id = uuid4()
+        nodes.append(
+            DagNodeCreate(
+                id=chunk_node_id,
+                type=NodeType.entity,
+                name=chunk_entity_definition.name,
+                entity_definition_id=chunk_entity_definition.id,
+            )
+        )
+
+        # Create edges
+        # Source -> Web Entity
+        edges.append(DagEdgeCreate(from_node_id=source_node_id, to_node_id=web_node_id))
+
+        # Web Entity -> Web Fetcher
+        edges.append(DagEdgeCreate(from_node_id=web_node_id, to_node_id=fetcher_node_id))
+
+        # Web Fetcher -> FileEntity
+        edges.append(DagEdgeCreate(from_node_id=fetcher_node_id, to_node_id=file_entity_node_id))
+
+        # FileEntity -> File Chunker
+        edges.append(DagEdgeCreate(from_node_id=file_entity_node_id, to_node_id=chunker_node_id))
 
         # File Chunker -> Parent Entity
         edges.append(DagEdgeCreate(from_node_id=chunker_node_id, to_node_id=parent_node_id))

@@ -27,7 +27,7 @@ class DockerComposeManager:
 
     def __init__(
         self,
-        compose_file: str = "docker/docker-compose.test.yml",
+        compose_file: str = "../../docker/docker-compose.test.yml",
         env_vars: Optional[Dict[str, str]] = None,
         minimal_services: Optional[bool] = False,
     ):
@@ -171,7 +171,23 @@ class DockerComposeManager:
                     "--no-cache",
                     "backend",
                 ]
-                subprocess.run(build_cmd, check=True, env=env)
+
+                # Change to tests directory for the build
+                os.chdir(self.tests_dir)
+
+                # Run build command with output capture
+                result = subprocess.run(build_cmd, env=env, capture_output=True, text=True)
+
+                if result.returncode != 0:
+                    logger.error(f"Docker build failed with exit code {result.returncode}")
+                    logger.error(f"STDOUT:\n{result.stdout}")
+                    logger.error(f"STDERR:\n{result.stderr}")
+                    raise subprocess.CalledProcessError(
+                        result.returncode, build_cmd, output=result.stdout, stderr=result.stderr
+                    )
+
+                # Change back to original directory
+                os.chdir(self.cwd)
 
                 # Stop and remove any existing backend container
                 logger.info("Removing any existing backend container...")

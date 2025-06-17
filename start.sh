@@ -21,6 +21,12 @@ mv .env.tmp .env
 # Add the new encryption key at the end of the file
 echo "ENCRYPTION_KEY=\"$NEW_KEY\"" >> .env
 
+# Add SKIP_AZURE_STORAGE for faster local startup
+if ! grep -q "^SKIP_AZURE_STORAGE=" .env; then
+    echo "SKIP_AZURE_STORAGE=true" >> .env
+    echo "Added SKIP_AZURE_STORAGE=true for faster startup"
+fi
+
 echo "Updated .env file. Current ENCRYPTION_KEY value:"
 grep "^ENCRYPTION_KEY=" .env
 
@@ -112,7 +118,63 @@ if [ -n "$EXISTING_CONTAINERS" ]; then
   fi
 fi
 
-# Now run the appropriate Docker Compose command
-$COMPOSE_CMD up -d
+# Now run the appropriate Docker Compose command with the new path
+$COMPOSE_CMD -f docker/docker-compose.yml up -d
 
-echo "Services started! Frontend is available at http://localhost:8080"
+# Wait a moment for services to initialize
+echo ""
+echo "Waiting for services to initialize..."
+sleep 10
+
+# Check if backend is healthy (with retries)
+echo "Checking backend health..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if ${CONTAINER_CMD} exec airweave-backend curl -f http://localhost:8001/health >/dev/null 2>&1; then
+    echo "✅ Backend is healthy!"
+    break
+  else
+    echo "⏳ Backend is still starting... (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)"
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    sleep 5
+  fi
+done
+
+# Check if frontend needs to be started manually
+FRONTEND_STATUS=$(${CONTAINER_CMD} inspect airweave-frontend --format='{{.State.Status}}' 2>/dev/null)
+if [ "$FRONTEND_STATUS" = "created" ] || [ "$FRONTEND_STATUS" = "exited" ]; then
+  echo "Starting frontend container..."
+  ${CONTAINER_CMD} start airweave-frontend
+  sleep 5
+fi
+
+# Final status check
+echo ""
+echo "🚀 Airweave Status:"
+echo "=================="
+
+# Check each service
+if ${CONTAINER_CMD} exec airweave-backend curl -f http://localhost:8001/health >/dev/null 2>&1; then
+  echo "✅ Backend API:    http://localhost:8001"
+else
+  echo "❌ Backend API:    Not responding (check logs with: docker logs airweave-backend)"
+fi
+
+if curl -f http://localhost:8080 >/dev/null 2>&1; then
+  echo "✅ Frontend UI:    http://localhost:8080"
+else
+  echo "❌ Frontend UI:    Not responding (check logs with: docker logs airweave-frontend)"
+fi
+
+echo ""
+echo "Other services:"
+echo "📊 Temporal UI:    http://localhost:8088"
+echo "🗄️  PostgreSQL:    localhost:5432"
+echo "🔍 Qdrant:        http://localhost:6333"
+echo ""
+echo "To view logs: docker logs <container-name>"
+echo "To stop all services: docker compose -f docker/docker-compose.yml down"
+echo ""
+echo "Services started!"

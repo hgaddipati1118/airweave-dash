@@ -43,7 +43,21 @@ Intercom entity schemas.
 
 This connector uses **OAuth 2.0 authentication flow**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Intercom authentication credentials schema.
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Intercom app.
+</ParamField>
+</Card>
 
 
 ## Entities

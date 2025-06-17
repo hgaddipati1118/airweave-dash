@@ -24,7 +24,7 @@ The Notion connector allows you to sync data from Notion into Airweave, making i
 
 ### NotionSource
 
-Notion source implementation.
+Comprehensive Notion source implementation with content aggregation.
 
 
 <Card
@@ -39,7 +39,21 @@ Notion source implementation.
 
 This connector uses **OAuth 2.0 authentication flow**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Notion authentication credentials schema.
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Notion app.
+</ParamField>
+</Card>
 
 
 ## Entities
@@ -48,47 +62,63 @@ The following data models are available for this connector:
 
 <Accordion title="NotionDatabaseEntity">
 
-Schema for Notion database entities.
+Schema for a Notion database.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| name | str | The name of the database |
 | database_id | str | The ID of the database |
-| description | Optional[str] | The description of the database |
-| created_time | Optional[datetime] | The creation time of the database |
-| last_edited_time | Optional[datetime] | The last edited time of the database |
+| title | str | The title of the database |
+| description | str | The description of the database |
+| properties | Dict[str, Any] | Database properties schema |
+| parent_id | str | The ID of the parent |
+| parent_type | str | The type of the parent (workspace, page_id, etc.) |
+| icon | Optional[Dict[str, Any]] | The icon of the database |
+| cover | Optional[Dict[str, Any]] | The cover of the database |
+| archived | bool | Whether the database is archived |
+| is_inline | bool | Whether the database is inline |
+| url | str | The URL of the database |
+| created_time | Optional[datetime] | When the database was created |
+| last_edited_time | Optional[datetime] | When the database was last edited |
 
 </Accordion>
 <Accordion title="NotionPageEntity">
 
-Schema for Notion page entities.
+Schema for a Notion page with aggregated content.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | page_id | str | The ID of the page |
-| parent_id | str | The ID of the parent page |
-| parent_type | str | The type of the parent page |
+| parent_id | str | The ID of the parent |
+| parent_type | str | The type of the parent (workspace, page_id, database_id, etc.) |
 | title | str | The title of the page |
-| created_time | Optional[datetime] | The creation time of the page |
-| last_edited_time | Optional[datetime] | The last edited time of the page |
+| content | Optional[str] | Full aggregated content |
+| properties | Dict[str, Any] | Page properties |
+| property_entities | List[Any] | Structured property entities |
+| files | List[Any] | Files referenced in the page |
+| icon | Optional[Dict[str, Any]] | The icon of the page |
+| cover | Optional[Dict[str, Any]] | The cover of the page |
 | archived | bool | Whether the page is archived |
-| content | Optional[str] | The content of the page |
+| in_trash | bool | Whether the page is in trash |
+| url | str | The URL of the page |
+| content_blocks_count | int | Number of blocks processed |
+| max_depth | int | Maximum nesting depth of blocks |
+| created_time | Optional[datetime] | When the page was created |
+| last_edited_time | Optional[datetime] | When the page was last edited |
 
 </Accordion>
-<Accordion title="NotionBlockEntity">
+<Accordion title="NotionPropertyEntity">
 
-Schema for Notion block entities.
+Schema for a Notion database page property.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| block_id | str | The ID of the block |
-| parent_id | str | The ID of the parent block |
-| block_type | str | The type of the block |
-| text_content | Optional[str] | The text content of the block |
-| has_children | bool | Whether the block has children |
-| children_ids | List[str] | The IDs of the children blocks |
-| created_time | Optional[datetime] | The creation time of the block |
-| last_edited_time | Optional[datetime] | The last edited time of the block |
+| property_id | str | The ID of the property |
+| property_name | str | The name of the property |
+| property_type | str | The type of the property |
+| page_id | str | The ID of the page this property belongs to |
+| database_id | str | The ID of the database this property belongs to |
+| value | Optional[Any] | The raw value of the property |
+| formatted_value | str | The formatted/display value of the property |
 
 </Accordion>
 

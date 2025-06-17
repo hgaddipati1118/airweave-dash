@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from airweave import schemas
 from airweave.core.shared_models import SyncJobStatus
 from airweave.db.unit_of_work import UnitOfWork
-from airweave.platform.sync.context import SyncContext
-from airweave.core.sync_service import SyncService
+from airweave.platform.sync.orchestrator import SyncOrchestrator
+from airweave.core.sync_service import SyncService, sync_service
 
 
 @pytest.fixture
@@ -25,11 +25,31 @@ def complete_uow():
     return mock
 
 
+@pytest.fixture
+def mock_collection():
+    """Create a mock collection."""
+    return MagicMock(spec=schemas.Collection)
+
+
+@pytest.fixture
+def mock_source_connection():
+    """Create a mock source connection."""
+    return MagicMock(spec=schemas.Connection)
+
+
 @pytest.mark.asyncio
 class TestSyncServiceIntegration:
     """Integration tests for SyncService."""
 
-    async def test_create_and_run_sync_flow(self, mock_db, mock_user, complete_uow, mock_sync_dag):
+    async def test_create_and_run_sync_flow(
+        self,
+        mock_db,
+        mock_user,
+        complete_uow,
+        mock_sync_dag,
+        mock_collection,
+        mock_source_connection
+    ):
         """Test the full flow of creating and running a sync."""
         # Arrange
         sync_id = uuid.uuid4()
@@ -39,10 +59,7 @@ class TestSyncServiceIntegration:
             patch("airweave.crud.sync.create") as mock_create_sync,
             patch("airweave.core.dag_service.dag_service.create_initial_dag") as mock_create_dag,
             patch("airweave.core.sync_service.get_db_context") as mock_get_db_context,
-            patch(
-                "airweave.core.sync_service.SyncContextFactory.create"
-            ) as mock_create_context,
-            patch("airweave.core.sync_service.sync_orchestrator.run") as mock_run,
+            patch("airweave.platform.sync.factory.SyncFactory.create_orchestrator", new_callable=AsyncMock) as mock_create_orchestrator,
         ):
             # Setup mocks for create
             mock_sync = MagicMock(spec=schemas.Sync)
@@ -56,10 +73,9 @@ class TestSyncServiceIntegration:
             mock_db_context.__aenter__.return_value = mock_db
             mock_get_db_context.return_value = mock_db_context
 
-            mock_sync_context = MagicMock(spec=SyncContext)
-            mock_create_context.return_value = mock_sync_context
-
-            mock_run.return_value = mock_sync  # Return the same sync
+            mock_orchestrator = AsyncMock(spec=SyncOrchestrator)
+            mock_orchestrator.run.return_value = mock_sync
+            mock_create_orchestrator.return_value = mock_orchestrator
 
             # Create sync request
             sync_create = schemas.SyncCreate(
@@ -104,6 +120,8 @@ class TestSyncServiceIntegration:
                 sync=created_sync,
                 sync_job=sync_job,
                 dag=mock_sync_dag,
+                collection=mock_collection,
+                source_connection=mock_source_connection,
                 current_user=mock_user,
             )
 
@@ -117,17 +135,32 @@ class TestSyncServiceIntegration:
 
             # Run assertions
             mock_get_db_context.assert_called_once()
-            mock_create_context.assert_called_once_with(
-                mock_db, created_sync, sync_job, mock_sync_dag, mock_user
+            mock_create_orchestrator.assert_called_once_with(
+                db=mock_db,
+                sync=created_sync,
+                sync_job=sync_job,
+                dag=mock_sync_dag,
+                collection=mock_collection,
+                source_connection=mock_source_connection,
+                current_user=mock_user,
+                access_token=None
             )
-            mock_run.assert_called_once_with(mock_sync_context)
+            mock_orchestrator.run.assert_called_once()
 
             # Final result assertions
             assert created_sync.id == sync_id
             assert run_result == mock_sync
 
     async def test_sync_service_error_recovery(
-        self, mock_db, mock_user, complete_uow, mock_sync, mock_sync_job, mock_sync_dag
+        self,
+        mock_db,
+        mock_user,
+        complete_uow,
+        mock_sync,
+        mock_sync_job,
+        mock_sync_dag,
+        mock_collection,
+        mock_source_connection
     ):
         """Test error recovery during a sync run."""
         # Arrange - simulate an error during sync
@@ -136,11 +169,9 @@ class TestSyncServiceIntegration:
         # Mock required components
         with (
             patch("airweave.core.sync_service.get_db_context") as mock_get_db_context,
-            patch(
-                "airweave.core.sync_service.SyncContextFactory.create"
-            ) as mock_create_context,
+            patch("airweave.platform.sync.factory.SyncFactory.create_orchestrator", new_callable=AsyncMock) as mock_create_orchestrator,
             patch("airweave.core.sync_service.logger.error") as mock_logger_error,
-            patch("airweave.core.sync_service.sync_job_service.update_status") as mock_update_status,
+            patch("airweave.core.sync_service.sync_job_service.update_status", new_callable=AsyncMock) as mock_update_status,
         ):
             mock_db_context = AsyncMock()
             mock_db_context.__aenter__.return_value = mock_db
@@ -148,8 +179,8 @@ class TestSyncServiceIntegration:
 
             mock_update_status.return_value = None
 
-            # Simulate error during context creation
-            mock_create_context.side_effect = test_error
+            # Simulate error during orchestrator creation
+            mock_create_orchestrator.side_effect = test_error
 
             # Act & Assert
             service = SyncService()
@@ -158,10 +189,21 @@ class TestSyncServiceIntegration:
                     sync=mock_sync,
                     sync_job=mock_sync_job,
                     dag=mock_sync_dag,
+                    collection=mock_collection,
+                    source_connection=mock_source_connection,
                     current_user=mock_user,
                 )
 
-            # Verify error was handled correctly
+            # Verify the exception was logged and re-raised
             assert excinfo.value == test_error
             mock_logger_error.assert_called_once()
-            assert "Error during sync" in mock_logger_error.call_args[0][0]
+            assert "Error during sync orchestrator creation" in mock_logger_error.call_args[0][0]
+            mock_update_status.assert_called_once()
+
+
+class TestSyncServiceSingletonIntegration:
+    """Tests for the SyncService singleton instance in integration context."""
+
+    def test_singleton_instance(self):
+        """Test that sync_service is an instance of SyncService."""
+        assert isinstance(sync_service, SyncService)

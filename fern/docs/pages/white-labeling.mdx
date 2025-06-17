@@ -1,219 +1,403 @@
 ---
-title: "White Labeling"
-description: "Implement white-labeled multi-tenant 3rd party integrations"
-subtitle: "Give customers a simple way to hand off their data to you"
+title: "White Label Integration"
+subtitle: "Multi-tenant OAuth2 with your branding"
 slug: white-labeling
+description: "Create OAuth2 integrations where customers see YOUR company name instead of Airweave, with automatic multi-tenant data isolation."
 ---
 
+Transform OAuth2 integrations into seamless customer experiences! White labeling lets your users authenticate with services using **your branding** while Airweave handles all the complex OAuth2 infrastructure behind the scenes.
 
-Airweave's white labeling feature enables you to create multi-tenant integrations that maintain data isolation and security while providing a seamless experience for your users.
+<Info title="🎨 Your Brand, Our Infrastructure">
+  Customers see "**YourApp** wants to access Google Drive" instead of "**Airweave** wants to access Google Drive" - but you get all the power of Airweave's data sync platform.
+</Info>
 
-This allows you to give customers a simple way to hand off their data to you.
+## Why White Label?
 
-## Overview
-
-White labeling in Airweave allows you to:
-
-- Manage OAuth2 flows for multiple tenants
-- Maintain data isolation between tenants
-
-
-## Example Workflow
-
-1. Customer clicks "Connect to Service" in your app
-2. Airweave handles OAuth2 authorization
-3. Tokens are securely stored and linked to tenant
-4. Data sync begins automatically
-5. Your app queries data using tenant metadata
-
-
-<Card
-  title="airweave-ai/oauth2-whitelabel-demo-app"
-  icon="brands github"
-  href="https://github.com/airweave-ai/oauth2-whitelabel-demo-app"
->
-  View a complete demo app showing how to implement OAuth2 white labeling with Asana
-</Card>
-
+<CardGroup cols={3}>
+  <Card title="Professional Branding" icon="fa-solid fa-palette">
+    Users see your company name throughout the entire OAuth experience
+  </Card>
+  <Card title="Seamless Integration" icon="fa-solid fa-puzzle-piece">
+    OAuth flows feel like a native part of your application
+  </Card>
+  <Card title="Multi-Tenant Ready" icon="fa-solid fa-users">
+    Automatic data isolation per customer with zero configuration
+  </Card>
+</CardGroup>
 
 ## How It Works
 
-### Token Management
+<Steps>
+  <Step title="Configure Integration">
+    Create a white label with your OAuth2 app credentials and branding
+  </Step>
 
-After the OAuth2 flow completes, Airweave:
+  <Step title="Generate Auth URL">
+    Get a branded OAuth2 URL for each customer
+  </Step>
 
-1. **Securely stores tokens**:
-   - Access tokens for API authentication
-   - Refresh tokens for automatic token renewal
-   - Links tokens to your provided tenant metadata
+  <Step title="Customer Authenticates">
+    Users see YOUR branding during the OAuth flow
+  </Step>
 
-2. **Handles token lifecycle**:
-   - Automatically refreshes expired access tokens
-   - Maintains uninterrupted synchronization
-   - Manages API authentication behind the scenes
+  <Step title="Automatic Data Sync">
+    Airweave creates source connections and starts syncing data with proper isolation
+  </Step>
+</Steps>
 
-<Note>
-Any questions about how this works exactly? [Contact us](mailto:support@airweave.ai) and we'll be happy to help!
-</Note>
+## Quick Start
+
+### 1. Create White Label Configuration
+
+First, set up your white label integration with your OAuth2 app credentials:
+
+<Tabs>
+  <Tab title="REST API">
+    <CodeBlock title="Create White Label Integration">
+    ```bash
+    curl -X POST "https://api.airweave.ai/white-labels/" \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: YOUR_API_KEY" \
+      -d '{
+        "name": "Customer Portal Integration",
+        "source_short_name": "google_drive",
+        "redirect_url": "https://yourapp.com/oauth/callback",
+        "client_id": "123456789-abc.apps.googleusercontent.com",
+        "client_secret": "GOCSPX-your-oauth-secret",
+        "allowed_origins": "https://yourapp.com,https://app.yourapp.com"
+      }'
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Python SDK">
+    <CodeBlock title="Python Implementation">
+    ```python
+    from airweave import AirweaveSDK
+
+    client = AirweaveSDK(api_key="YOUR_API_KEY")
+
+    # Create white label integration
+    integration = client.white_labels.create({
+        "name": "Customer Portal Integration",
+        "source_short_name": "google_drive",
+        "redirect_url": "https://yourapp.com/oauth/callback",
+        "client_id": "123456789-abc.apps.googleusercontent.com",
+        "client_secret": "GOCSPX-your-oauth-secret",
+        "allowed_origins": "https://yourapp.com,https://app.yourapp.com"
+    })
+
+    print(f"✅ Integration created: {integration.id}")
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Node.js SDK">
+    <CodeBlock title="Node.js Implementation">
+    ```typescript
+    import { AirweaveSDKClient } from "@airweave/sdk";
+
+    const client = new AirweaveSDKClient({
+      apiKey: "YOUR_API_KEY"
+    });
+
+    // Create white label integration
+    const integration = await client.whiteLabels.create({
+      name: "Customer Portal Integration",
+      sourceShortName: "google_drive",
+      redirectUrl: "https://yourapp.com/oauth/callback",
+      clientId: "123456789-abc.apps.googleusercontent.com",
+      clientSecret: "GOCSPX-your-oauth-secret",
+      allowedOrigins: "https://yourapp.com,https://app.yourapp.com"
+    });
+
+    console.log(`✅ Integration created: ${integration.id}`);
+    ```
+    </CodeBlock>
+  </Tab>
+</Tabs>
+
+### 2. Generate Customer Auth URLs
+
+For each customer who wants to connect their account:
+
+<Tabs>
+  <Tab title="REST API">
+    <CodeBlock title="Get Customer Auth URL">
+    ```bash
+    curl -X GET "https://api.airweave.ai/white-labels/{integration_id}/oauth2/auth_url?state={customer_id}" \
+      -H "x-api-key: YOUR_API_KEY"
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Python SDK">
+    <CodeBlock title="Python Auth URL">
+    ```python
+    # Generate auth URL for specific customer
+    auth_url = client.white_labels.get_oauth2_auth_url(
+        white_label_id=integration.id,
+        state=customer_id  # Your customer's unique identifier
+    )
+
+    # Redirect customer to this URL
+    print(f"🔗 Redirect customer to: {auth_url}")
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Node.js SDK">
+    <CodeBlock title="Node.js Auth URL">
+    ```typescript
+    // Generate auth URL for specific customer
+    const authUrl = await client.whiteLabels.getOauth2AuthUrl({
+      whiteLabelId: integration.id,
+      state: customerId  // Your customer's unique identifier
+    });
+
+    // Redirect customer to this URL
+    console.log(`🔗 Redirect customer to: ${authUrl}`);
+    ```
+    </CodeBlock>
+  </Tab>
+</Tabs>
+
+### 3. Handle OAuth Callback
+
+When the customer completes OAuth, handle the callback:
+
+<Tabs>
+  <Tab title="REST API">
+    <CodeBlock title="Exchange OAuth Code">
+    ```bash
+    curl -X POST "https://api.airweave.ai/white-labels/{integration_id}/oauth2/code" \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: YOUR_API_KEY" \
+      -d '{
+        "code": "oauth_authorization_code",
+        "source_connection_in": {
+          "name": "Customer Google Drive",
+          "collection": "customer-data",
+          "sync_immediately": true
+        }
+      }'
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Python SDK">
+    <CodeBlock title="Python OAuth Exchange">
+    ```python
+    # Exchange OAuth code for source connection
+    source_connection = client.white_labels.exchange_oauth2_code(
+        white_label_id=integration.id,
+        code=oauth_code,
+        source_connection_in={
+            "name": "Customer Google Drive",
+            "collection": "customer-data",
+            "sync_immediately": True
+        }
+    )
+
+    print(f"🎉 Source connection created: {source_connection.id}")
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Node.js SDK">
+    <CodeBlock title="Node.js OAuth Exchange">
+    ```typescript
+    // Exchange OAuth code for source connection
+    const sourceConnection = await client.whiteLabels.exchangeOauth2Code({
+      whiteLabelId: integration.id,
+      code: oauthCode,
+      sourceConnectionIn: {
+        name: "Customer Google Drive",
+        collection: "customer-data",
+        syncImmediately: true
+      }
+    });
+
+    console.log(`🎉 Source connection created: ${sourceConnection.id}`);
+    ```
+    </CodeBlock>
+  </Tab>
+</Tabs>
 
 
-## Setting Up White Label Integration
+## Complete Integration Example
 
-### 1. White Label Configuration
+Here's a full example showing how to integrate white labeling into a React application:
 
-First, create a white label configuration either through the UI or programmatically.
-
-#### Option A: Using the Airweave UI
-
-<Frame title="White Label Configuration">
-  <img src="../assets/images/white-label-configuration.png" alt="White Label Configuration" />
-</Frame>
-
-#### Option B: Using the SDK
-
-<CodeBlock title="Create a white label configuration">
-```typescript
-import { AirweaveSDK } from "@airweave/sdk";
-
-const client = new AirweaveSDK({
-  apiKey: "your-api-key",
-});
-
-const integration = await client.whiteLabels.create({
-  name: "Custom Integration",
-  sourceId: "source-uuid", // UUID of the source to connect to
-  redirectUrl: "https://your-app.com/oauth/callback",
-  clientId: "your-oauth-client-id",
-  clientSecret: "your-oauth-client-secret",
-});
-```
-</CodeBlock>
-
-### 2. Initiating OAuth2 Flow
-
-Create a component that redirects users to the OAuth2 authorization screen:
-
-<CodeBlock title="Connect Source Button">
+<CodeBlock title="React Component with White Label">
 ```tsx
-import { Button } from "@/components/ui/button";
-import { useApiClient } from "@/lib/api";
-import { useRouter } from "next/router";
-import { ExternalLink } from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
 
-interface ConnectSourceProps {
-  sourceId: string;
-  organizationId: string;
+interface ConnectServiceProps {
+  customerId: string;
+  integrationId: string;
 }
 
-export function ConnectSource({ sourceId, organizationId }: ConnectSourceProps) {
-  const apiClient = useApiClient();
-  const router = useRouter();
+export function ConnectService({ customerId, integrationId }: ConnectServiceProps) {
+  const [connecting, setConnecting] = useState(false);
 
   const handleConnect = async () => {
     try {
-      const { authUrl } = await apiClient.whiteLabels.getOauth2AuthUrl({
-        whiteLabelId: integration.id,
-        state: organizationId,
-      });
+      setConnecting(true);
 
-      router.push(authUrl);
+      // Get the branded OAuth URL
+      const response = await fetch(
+        `/api/integrations/${integrationId}/auth-url?customer=${customerId}`,
+        { headers: { 'Authorization': `Bearer ${apiKey}` } }
+      );
+
+      const { authUrl } = await response.json();
+
+      // Redirect to branded OAuth flow
+      window.location.href = authUrl;
+
     } catch (error) {
-      console.error("Failed to get auth URL:", error);
+      console.error('Failed to initiate connection:', error);
+    } finally {
+      setConnecting(false);
     }
   };
 
   return (
     <Button
       onClick={handleConnect}
-      variant="outline"
+      disabled={connecting}
+      className="w-full"
     >
-      Connect Source <ExternalLink className="ml-2 h-4 w-4" />
+      {connecting ? (
+        'Connecting...'
+      ) : (
+        <>
+          Connect Google Drive <ExternalLink className="ml-2 h-4 w-4" />
+        </>
+      )}
     </Button>
   );
 }
 ```
 </CodeBlock>
 
-### 3. Handling OAuth2 Callback
+## Example Demo Application
 
-Create a callback handler component to process the OAuth2 response:
+<Card
+  title="🚀 Complete Demo App"
+  icon="fa-brands fa-github"
+  href="https://github.com/airweave-ai/oauth2-whitelabel-demo-app"
+>
+  See a full working example of white label integration with Asana, including React components and backend handling.
+</Card>
 
-<CodeBlock title="OAuth Callback Handler">
-```tsx
-interface CallbackProps {
-  whiteLabelId: string;
-}
+## What Happens Behind the Scenes
 
-export function OAuthCallback({ whiteLabelId }: CallbackProps) {
-  const apiClient = useApiClient();
-  const router = useRouter();
-  const { code, state } = router.query;
+<AccordionGroup>
+  <Accordion title="🔐 Secure Token Management">
+    Airweave securely stores OAuth2 tokens and handles automatic refresh. Your customers never need to re-authenticate unless they revoke access.
+  </Accordion>
 
-  useEffect(() => {
-    const handleCallback = async () => {
-      if (!code || !state) return;
+  <Accordion title="🏗️ Automatic Source Connections">
+    Each successful OAuth flow creates a source connection in the specified collection, ready to sync data immediately.
+  </Accordion>
 
-      try {
-        await apiClient.whiteLabels.exchangeOauth2Code({
-          whiteLabelId,
-          code: code as string,
-          metadata: {
-            organizationId: state as string,
-          },
-        });
+  <Accordion title="🛡️ Multi-Tenant Isolation">
+    Customer data is automatically isolated using the `state` parameter you provide. No risk of data mixing between customers.
+  </Accordion>
 
-        router.push('/integrations/success');
-      } catch (error) {
-        console.error('OAuth callback failed:', error);
-        router.push('/integrations/error');
-      }
-    };
+  <Accordion title="⚡ Immediate Sync">
+    If `sync_immediately` is true, data sync starts in the background as soon as the connection is created.
+  </Accordion>
+</AccordionGroup>
 
-    handleCallback();
-  }, [code, state, whiteLabelId, apiClient, router]);
+## Security & Best Practices
 
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-lg font-semibold mb-2">Connecting your account...</h2>
-        <p className="text-muted-foreground">Please wait while we complete the setup.</p>
-      </div>
-    </div>
-  );
-}
-```
-</CodeBlock>
+<Warning title="🔒 OAuth2 Credentials Security">
+  **Never expose credentials** in frontend code. Always handle OAuth2 flows on your backend and store credentials securely.
+</Warning>
 
-### Data Synchronization
+<CardGroup cols={2}>
+  <Card title="🛡️ Security Guidelines" icon="fa-solid fa-shield">
+    **Use HTTPS everywhere** for redirect URLs and origins
+    **Validate state parameters** to prevent CSRF attacks
+    **Store secrets securely** using environment variables or secret managers
+    **Rotate credentials regularly** for enhanced security
+  </Card>
+  <Card title="📈 Performance Tips" icon="fa-solid fa-rocket">
+    **Cache auth URLs** temporarily to reduce API calls
+    **Use webhooks** to get notified when syncs complete
+    **Monitor sync status** to handle failures gracefully
+    **Set up alerts** for authentication errors
+  </Card>
+</CardGroup>
 
-Once authentication is complete, Airweave:
+## Troubleshooting
 
-1. **Processes data efficiently**:
-   - Runs incremental syncs to fetch only new/updated data
-   - Entities data for optimal processing
-   - Applies versioning and computes hashes for deduplication
+<AccordionGroup>
+  <Accordion title="❌ OAuth Flow Fails">
+    **Common causes**:
+    - Incorrect redirect URL in OAuth app settings
+    - Missing required scopes
+    - Invalid client credentials
 
-2. **Maintains tenant isolation**:
-   - Uses your provided metadata (organization ID, user details) to isolate data
-   - Ensures secure multi-tenant operations
-   - Enables tenant-specific data enrichment
+    **Solutions**:
+    - Verify redirect URL matches exactly (including protocol)
+    - Check OAuth app configuration in the service's developer console
+    - Ensure client_id and client_secret are correct
+  </Accordion>
 
-## Architecture
+  <Accordion title="🚫 CORS Errors">
+    **Common causes**:
+    - Origin not included in `allowed_origins`
+    - HTTP vs HTTPS mismatch
 
-<Frame title="White Label Architecture">
-  <img src="../assets/images/white-label-architecture.png" alt="White Labeling Architecture" />
-</Frame>
+    **Solutions**:
+    - Add your domain to the `allowed_origins` field
+    - Ensure protocol matches (use HTTPS in production)
+  </Accordion>
 
-The architecture diagram above illustrates how Airweave handles different authentication methods across multiple data sources:
+  <Accordion title="⚠️ Sync Failures">
+    **Common causes**:
+    - Insufficient OAuth permissions
+    - Token expiration without refresh token
 
-- **API Key Integration**: Users (like User A) can connect services that use API key authentication (e.g., Slack)
-- **OAuth Integration**: Users (like User B) can connect services that require OAuth authentication (e.g., Google Drive, Notion)
-- **Database Integration**: Users (like User C) can connect directly to databases using JDBC credentials
+    **Solutions**:
+    - Request broader OAuth scopes
+    - Verify refresh tokens are being stored and used
+  </Accordion>
+</AccordionGroup>
 
-All these connections are managed through Airweave's white-labeling system, which:
-1. Securely stores and manages credentials
-2. Maintains strict tenant isolation
-3. Handles authentication renewals automatically
-4. Synchronizes data to your agent while preserving tenant context
 
-This architecture ensures that regardless of the authentication method, all data is properly isolated and securely managed while providing a unified interface for your application.
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card
+    title="📖 API Reference"
+    icon="fa-solid fa-code"
+    href="/api/reference/white-labels"
+  >
+    Complete API documentation for white label endpoints and examples
+  </Card>
+  <Card
+    title="🔌 Browse All Sources"
+    icon="fa-solid fa-plug"
+    href="/docs/connectors/google-drive"
+  >
+    Explore OAuth2 requirements for all 28+ supported sources
+  </Card>
+  <Card
+    title="💬 Get Support"
+    icon="fa-brands fa-discord"
+    href="https://discord.gg/484HY9Ehxt"
+  >
+    Join our Discord for help and community support
+  </Card>
+</CardGroup>
+
+<Success title="🎉 Ready to Go!">
+  Your customers will now see a professional, branded OAuth experience while you get all the benefits of Airweave's powerful data synchronization platform.
+</Success>

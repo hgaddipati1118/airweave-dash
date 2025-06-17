@@ -47,7 +47,21 @@ The Todoist entity schemas are defined in entities/todoist.py.
 
 This connector uses **OAuth 2.0 authentication flow**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Todoist authentication credentials schema.
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Todoist app.
+</ParamField>
+</Card>
 
 
 ## Entities
@@ -102,11 +116,16 @@ Schema for Todoist task entities.
 | parent_id | Optional[str] | ID of the parent task if subtask |
 | creator_id | Optional[str] | ID of the user who created the task |
 | created_at | Optional[datetime] | When the task was created |
+| assignee_id | Optional[str] | ID of the user assigned to the task |
+| assigner_id | Optional[str] | ID of the user who assigned the task |
 | due_date | Optional[str] | Due date in YYYY-MM-DD format |
 | due_datetime | Optional[datetime] | Due date and time |
 | due_string | Optional[str] | Original due date string (e.g., 'tomorrow') |
 | due_is_recurring | bool | Whether the task is recurring |
 | due_timezone | Optional[str] | Timezone for the due date |
+| deadline_date | Optional[str] | Deadline date in YYYY-MM-DD format |
+| duration_amount | Optional[int] | Duration amount |
+| duration_unit | Optional[str] | Duration unit ('minute' or 'day') |
 | url | Optional[str] | URL to access the task |
 
 </Accordion>

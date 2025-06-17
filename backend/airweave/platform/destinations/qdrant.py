@@ -101,16 +101,36 @@ class QdrantDestination(VectorDBDestination):
                 await self.client.get_collections()
                 logger.info("Successfully connected to Qdrant service.")
             except Exception as e:
-                logger.error(f"Error connecting to Qdrant service: {e}")
+                logger.error(f"Error connecting to Qdrant service at {location}: {e}")
                 self.client = None
-                raise
+                # Provide more specific error messages
+                if "connection refused" in str(e).lower():
+                    raise ConnectionError(
+                        f"Qdrant service is not running or refusing connections at {location}"
+                    ) from e
+                elif "timeout" in str(e).lower():
+                    raise ConnectionError(
+                        f"Connection to Qdrant service timed out at {location}"
+                    ) from e
+
+                elif "authentication" in str(e).lower() or "unauthorized" in str(e).lower():
+                    raise ConnectionError(
+                        f"Authentication failed for Qdrant service at {location}"
+                    ) from e
+                else:
+                    raise ConnectionError(
+                        f"Failed to connect to Qdrant service at {location}: {str(e)}"
+                    ) from e
 
     async def ensure_client_readiness(self) -> None:
         """Ensure the client is ready to accept requests."""
         if self.client is None:
             await self.connect_to_qdrant()
             if self.client is None:
-                raise Exception("Qdrant client failed to connect.")
+                raise ConnectionError(
+                    "Failed to establish connection to Qdrant service. Please check if "
+                    "the service is running and accessible."
+                )
 
     async def close_connection(self) -> None:
         """Close the connection to the Qdrant service."""
@@ -137,7 +157,7 @@ class QdrantDestination(VectorDBDestination):
             return any(collection.name == collection_name for collection in collections)
         except Exception as e:
             logger.error(f"Error checking if collection exists: {e}")
-            return False
+            raise  # Re-raise the exception instead of returning False
 
     async def setup_collection(self, vector_size: int) -> None:  # noqa: C901
         """Set up the Qdrant collection for storing entities.
@@ -215,11 +235,13 @@ class QdrantDestination(VectorDBDestination):
         for entity in entities:
             # Use the entity's to_storage_dict method to get properly serialized data
             entity_data = entity.to_storage_dict()
-
             # Use the entity's vector directly
             if not hasattr(entity, "vector") or entity.vector is None:
                 logger.warning(f"Entity {entity.entity_id} has no vector, skipping")
                 continue
+
+            if hasattr(entity_data, "vector"):
+                entity_data.pop("vector")
 
             # Create point for Qdrant
             point_structs.append(
@@ -238,7 +260,7 @@ class QdrantDestination(VectorDBDestination):
         operation_response = await self.client.upsert(
             collection_name=self.collection_name,
             points=point_structs,
-            wait=True,  # Wait for operation to complete
+            wait=False,  # Wait for operation to complete
         )
 
         if hasattr(operation_response, "errors") and operation_response.errors:
@@ -384,4 +406,4 @@ class QdrantDestination(VectorDBDestination):
             return results
         except Exception as e:
             logger.error(f"Error searching with Qdrant filter: {e}")
-            return []
+            raise  # Re-raise the exception instead of returning empty list

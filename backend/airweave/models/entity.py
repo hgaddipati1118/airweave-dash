@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airweave.models._base import OrganizationBase
@@ -46,4 +46,10 @@ class Entity(OrganizationBase):
             "entity_id",
             name="uq_sync_id_entity_id",
         ),
+        # Performance indexes based on common query patterns
+        Index("idx_entity_sync_id", "sync_id"),
+        Index("idx_entity_sync_job_id", "sync_job_id"),
+        Index("idx_entity_entity_id", "entity_id"),
+        # Composite index for the most common lookup pattern
+        Index("idx_entity_entity_id_sync_id", "entity_id", "sync_id"),
     )

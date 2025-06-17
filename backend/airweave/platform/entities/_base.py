@@ -283,6 +283,9 @@ class FileEntity(BaseEntity):
     size: Optional[int] = Field(None, description="Size of the file in bytes")
     download_url: str = Field(..., description="URL to download the file")
     should_skip: bool = Field(False, description="Flag indicating if this file should be skipped")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Additional metadata about the file"
+    )
 
     # File handling fields - set by file handler
     file_uuid: Optional[UUID] = Field(None, description="UUID assigned by the file manager")
@@ -291,6 +294,16 @@ class FileEntity(BaseEntity):
     )
     checksum: Optional[str] = Field(None, description="File checksum/hash if available")
     total_size: Optional[int] = Field(None, description="Total size of the file in bytes")
+
+    # Storage fields - set by storage manager
+    storage_blob_name: Optional[str] = Field(
+        None, description="Blob name in persistent storage (e.g., Azure)"
+    )
+    is_cached: bool = Field(False, description="Flag indicating if this file was loaded from cache")
+    is_fully_processed: bool = Field(
+        False,
+        description="Flag indicating if this file was already fully processed (should be KEPT)",
+    )
 
     def hash(self) -> str:
         """Hash the file entity.
@@ -433,6 +446,18 @@ class CodeFileEntity(ChunkEntity):
     content: Optional[str] = Field(None, description="File content if available")
     breadcrumbs: List[Breadcrumb] = Field(
         default_factory=list, description="Breadcrumb navigation path"
+    )
+
+
+class WebEntity(BaseEntity):
+    """Entity representing a web page to be crawled."""
+
+    url: str = Field(..., description="URL to crawl")
+    title: Optional[str] = Field(None, description="Page title if known")
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    is_fully_processed: bool = Field(
+        False,
+        description="Flag indicating if this entity was already fully processed (should be KEPT)",
     )
 
 

@@ -69,7 +69,7 @@ class GmailSource(BaseSource):
             raise
 
     async def _generate_thread_entities(
-        self, client: httpx.AsyncClient
+        self, client: httpx.AsyncClient, processed_message_ids: set
     ) -> AsyncGenerator[ChunkEntity, None]:
         """Generate GmailThreadEntity objects and associated message entities."""
         logger.info("Starting thread entity generation")
@@ -131,7 +131,7 @@ class GmailSource(BaseSource):
                 # Create thread entity
                 logger.info(f"Creating thread entity for thread ID: {thread_id}")
                 thread_entity = GmailThreadEntity(
-                    entity_id=thread_id,
+                    entity_id=f"thread_{thread_id}",  # Prefix to ensure uniqueness
                     breadcrumbs=[],  # Thread is top-level
                     snippet=snippet,
                     history_id=history_id,
@@ -145,7 +145,7 @@ class GmailSource(BaseSource):
 
                 # Create thread breadcrumb for messages
                 thread_breadcrumb = Breadcrumb(
-                    entity_id=thread_id,
+                    entity_id=f"thread_{thread_id}",  # Match the thread entity's ID
                     name=snippet[:50] + "..." if len(snippet) > 50 else snippet,
                     type="thread",
                 )
@@ -155,11 +155,22 @@ class GmailSource(BaseSource):
                 logger.info(f"Processing {len(message_list)} messages in thread {thread_id}")
                 for msg_idx, message_data in enumerate(message_list):
                     msg_id = message_data.get("id", "unknown")
+
+                    # Skip if we've already processed this message in another thread
+                    if msg_id in processed_message_ids:
+                        logger.info(
+                            f"Skipping message {msg_id} in thread {thread_id} - already processed"
+                        )
+                        continue
+
                     msg_info = (
                         f"Processing message #{msg_idx + 1}/{len(message_list)} "
                         f"(ID: {msg_id}) in thread {thread_id}"
                     )
                     logger.info(msg_info)
+
+                    # Mark this message as processed
+                    processed_message_ids.add(msg_id)
 
                     msg_entity_count = 0
                     async for entity in self._process_message(
@@ -268,7 +279,7 @@ class GmailSource(BaseSource):
         # Create message entity
         logger.info(f"Creating message entity for message {message_id}")
         message_entity = GmailMessageEntity(
-            entity_id=message_id,
+            entity_id=f"msg_{message_id}",  # Prefix to ensure uniqueness
             breadcrumbs=[thread_breadcrumb],
             thread_id=thread_id,
             subject=subject,
@@ -290,7 +301,7 @@ class GmailSource(BaseSource):
 
         # Create message breadcrumb for attachments
         message_breadcrumb = Breadcrumb(
-            entity_id=message_id,
+            entity_id=f"msg_{message_id}",  # Match the message entity's ID
             name=subject or f"Message {message_id}",
             type="message",
         )
@@ -455,8 +466,9 @@ class GmailSource(BaseSource):
                     dummy_download_url = f"gmail://attachment/{message_id}/{attachment_id}"
 
                     # Create file entity
+                    # Prefix to ensure uniqueness
                     file_entity = GmailAttachmentEntity(
-                        entity_id=f"{message_id}_{attachment_id}",
+                        entity_id=f"attach_{message_id}_{attachment_id}",
                         breadcrumbs=breadcrumbs,
                         file_id=attachment_id,
                         name=filename,
@@ -532,11 +544,14 @@ class GmailSource(BaseSource):
         """Generate all Gmail entities: Threads, Messages, and Attachments."""
         logger.info("===== STARTING GMAIL ENTITY GENERATION =====")
         entity_count = 0
+        # Track processed message IDs to avoid duplicates across threads
+        processed_message_ids = set()
+
         try:
             async with httpx.AsyncClient() as client:
                 logger.info("HTTP client created, starting entity generation")
                 # Generate thread entities (which also generates messages and attachments)
-                async for entity in self._generate_thread_entities(client):
+                async for entity in self._generate_thread_entities(client, processed_message_ids):
                     entity_count += 1
                     entity_type = type(entity).__name__
                     logger.info(

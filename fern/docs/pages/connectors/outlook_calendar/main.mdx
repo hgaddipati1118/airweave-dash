@@ -37,9 +37,30 @@ Outlook Calendar source implementation (read-only).
 
 ### Authentication
 
-This connector uses **OAuth 2.0 with refresh token**.
+This connector uses **OAuth 2.0 with rotating refresh token**.
 
-You can connect through the Airweave UI, which will guide you through the OAuth flow.
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Outlook Calendar authentication credentials schema.
+<ParamField
+  path="refresh_token"
+  type="str"
+  required={true}
+>
+  The refresh token for your Outlook Calendar app.
+</ParamField>
+<ParamField
+  path="access_token"
+  type="str"
+  required={true}
+>
+  The access token for your Outlook Calendar app.
+</ParamField>
+</Card>
 
 
 ## Entities
@@ -50,48 +71,72 @@ The following data models are available for this connector:
 
 Schema for an Outlook Calendar object.
 
-The inherited entity_id field stores the calendar's Microsoft Graph ID.
+Based on the Microsoft Graph Calendar resource.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | name | Optional[str] | The display name of the calendar. |
-| color | Optional[str] | Indicates the color theme for the calendar. |
-| change_key | Optional[str] | Identifies the version of the calendar object. Every time the calendar changes, changeKey changes. |
-| can_edit | bool | Indicates if the user can write to the calendar. |
-| can_share | bool | Indicates if the user has the ability to share the calendar. |
-| can_view_private_items | bool | Indicates if the user can view private events on the calendar. |
-| owner | Optional[Dict[str, Any]] | Details about the calendar's owner. Usually includes name and address fields. |
+| color | Optional[str] | Color theme to distinguish the calendar (auto, lightBlue, etc.). |
+| hex_color | Optional[str] | Calendar color in hex format (e.g., #FF0000). |
+| change_key | Optional[str] | Version identifier that changes when the calendar is modified. |
+| can_edit | bool | Whether the user can write to the calendar. |
+| can_share | bool | Whether the user can share the calendar. |
+| can_view_private_items | bool | Whether the user can view private events in the calendar. |
+| is_default_calendar | bool | Whether this is the default calendar for new events. |
+| is_removable | bool | Whether this calendar can be deleted from the mailbox. |
+| is_tallying_responses | bool | Whether this calendar supports tracking meeting responses. |
+| owner | Optional[Dict[str, Any]] | Information about the calendar owner (name and email). |
+| allowed_online_meeting_providers | List[str] | Online meeting providers that can be used (teamsForBusiness, etc.). |
+| default_online_meeting_provider | Optional[str] | Default online meeting provider for this calendar. |
 
 </Accordion>
 <Accordion title="OutlookCalendarEventEntity">
 
 Schema for an Outlook Calendar Event object.
 
-The inherited entity_id field stores the event's Microsoft Graph ID.
+Based on the Microsoft Graph Event resource.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| subject | Optional[str] | The subject or title of the event. |
-| body_preview | Optional[str] | A short text preview of the event body. |
-| body_content | Optional[str] | Full body content (HTML or text). |
-| start_datetime | Optional[datetime] | The date/time when the event starts, in UTC. Derived from 'start.dateTime' if present. |
-| start_timezone | Optional[str] | Time zone for the start time, from 'start.timeZone'. |
-| end_datetime | Optional[datetime] | The date/time when the event ends, in UTC. Derived from 'end.dateTime' if present. |
-| end_timezone | Optional[str] | Time zone for the end time, from 'end.timeZone'. |
-| is_all_day | bool | Indicates if the event lasts all day. |
-| is_cancelled | bool | Indicates if the event has been canceled. |
-| show_as | Optional[str] | The status to show. E.g., 'busy', 'tentative', 'free'. |
-| importance | Optional[str] | Indicates the importance of the event. |
-| sensitivity | Optional[str] | Indicates the sensitivity of the event (normal, personal, private, confidential). |
-| organizer | Optional[Dict[str, Any]] | Information about the organizer of the event, typically includes email address and name. |
-| attendees | Optional[List[Dict[str, Any]]] | List of attendees. Each dict usually includes email address info and response status. |
-| location | Optional[Dict[str, Any]] | Information about the location where the event is held. Usually includes display address, unique identifier, and unique location type. |
-| created_at | Optional[datetime] | Timestamp when the event was created, from 'createdDateTime'. |
-| updated_at | Optional[datetime] | Timestamp when the event was last modified, from 'lastModifiedDateTime'. |
-| web_link | Optional[str] | A URL that opens the event in Outlook on the web. |
-| online_meeting_url | Optional[str] | A URL to join the meeting online if the event has online meeting info (e.g., Microsoft Teams). |
-| series_master_id | Optional[str] | If this is part of a recurring series, specifies the ID of the master recurring event. |
-| recurrence | Optional[Dict[str, Any]] | When present, indicates the recurrence pattern of a repeating event. |
+| subject | Optional[str] | The subject/title of the event. |
+| body_preview | Optional[str] | Preview of the event body content. |
+| body_content | Optional[str] | Full body content of the event. |
+| body_content_type | Optional[str] | Content type of the body (html or text). |
+| start_datetime | Optional[datetime] | Start date and time of the event. |
+| start_timezone | Optional[str] | Timezone for the start time. |
+| end_datetime | Optional[datetime] | End date and time of the event. |
+| end_timezone | Optional[str] | Timezone for the end time. |
+| is_all_day | bool | Whether the event lasts all day. |
+| is_cancelled | bool | Whether the event has been cancelled. |
+| is_draft | bool | Whether the event is a draft. |
+| is_online_meeting | bool | Whether this is an online meeting. |
+| is_organizer | bool | Whether the user is the organizer. |
+| is_reminder_on | bool | Whether a reminder is set. |
+| show_as | Optional[str] | How to show time (free, busy, tentative, oof, etc.). |
+| importance | Optional[str] | Importance level (low, normal, high). |
+| sensitivity | Optional[str] | Sensitivity level (normal, personal, private, confidential). |
+| response_status | Optional[Dict[str, Any]] | Response status of the user to the event. |
+| organizer | Optional[Dict[str, Any]] | Event organizer information (name and email). |
+| attendees | Optional[List[Dict[str, Any]]] | List of event attendees with their response status. |
+| location | Optional[Dict[str, Any]] | Primary location information for the event. |
+| locations | List[Dict[str, Any]] | List of all locations associated with the event. |
+| categories | List[str] | Categories assigned to the event. |
+| created_at | Optional[datetime] | When the event was created. |
+| updated_at | Optional[datetime] | When the event was last modified. |
+| web_link | Optional[str] | URL to open the event in Outlook on the web. |
+| online_meeting_url | Optional[str] | URL to join the online meeting. |
+| online_meeting_provider | Optional[str] | Online meeting provider (teamsForBusiness, etc.). |
+| online_meeting | Optional[Dict[str, Any]] | Online meeting details and join information. |
+| series_master_id | Optional[str] | ID of the master event if this is part of a recurring series. |
+| recurrence | Optional[Dict[str, Any]] | Recurrence pattern for recurring events. |
+| reminder_minutes_before_start | Optional[int] | Minutes before start time when reminder fires. |
+| has_attachments | bool | Whether the event has attachments. |
+| ical_uid | Optional[str] | Unique identifier across calendars. |
+| change_key | Optional[str] | Version identifier that changes when event is modified. |
+| original_start_timezone | Optional[str] | Start timezone when event was originally created. |
+| original_end_timezone | Optional[str] | End timezone when event was originally created. |
+| allow_new_time_proposals | bool | Whether invitees can propose new meeting times. |
+| hide_attendees | bool | Whether attendees are hidden from each other. |
 
 </Accordion>
 

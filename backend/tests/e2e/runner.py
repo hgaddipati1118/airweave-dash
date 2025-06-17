@@ -18,7 +18,7 @@ class E2ETestRunner:
     is delegated to the DockerComposeManager.
     """
 
-    def __init__(self, compose_file: str = "docker/docker-compose.test.yml"):
+    def __init__(self, compose_file: str = "../../docker/docker-compose.test.yml"):
         """Initialize the E2E test runner.
 
         Args:

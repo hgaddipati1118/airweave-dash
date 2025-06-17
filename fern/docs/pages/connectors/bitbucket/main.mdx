@@ -1,0 +1,101 @@
+---
+title: "Bitbucket"
+description: "Bitbucket integration with Airweave"
+---
+
+{/* AUTO-GENERATED CONTENT START */}
+
+
+
+<div className="connector-header">
+  <img src="icon.svg" alt="Bitbucket logo" width="72" height="72" className="connector-icon" />
+  <div className="connector-info">
+    <h1>Bitbucket</h1>
+    <p>Connect your Bitbucket data to Airweave</p>
+  </div>
+</div>
+
+## Overview
+
+The Bitbucket connector allows you to sync data from Bitbucket into Airweave, making it available for search and retrieval by your agents.
+
+## Configuration
+
+
+### BitbucketSource
+
+Bitbucket source implementation.
+
+
+<Card
+  title="View Source Code"
+  icon="brands github"
+  href="https://github.com/airweave-ai/airweave/tree/main/backend/airweave/platform/sources/bitbucket.py"
+>
+  Explore the Bitbucket connector implementation
+</Card>
+
+### Authentication
+
+This connector uses a custom authentication configuration class: `BitbucketAuthConfig`.
+
+<Card
+  title="Authentication Configuration"
+  className="auth-config-card"
+  style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
+>
+
+Bitbucket authentication credentials schema.
+<ParamField
+  path="username"
+  type="str"
+  required={true}
+>
+  Your Bitbucket username
+</ParamField>
+<ParamField
+  path="app_password"
+  type="str"
+  required={true}
+>
+  Bitbucket app password with repository read permissions
+</ParamField>
+<ParamField
+  path="workspace"
+  type="str"
+  required={true}
+>
+  Bitbucket workspace slug (e.g., 'my-workspace')
+</ParamField>
+<ParamField
+  path="repo_slug"
+  type="Optional[str]"
+  required={false}
+  default=""
+>
+  Specific repository to sync (e.g., 'my-repo'). If empty, syncs all repositories in the workspace.
+</ParamField>
+</Card>
+
+
+## Entities
+
+The following data models are available for this connector:
+
+<Accordion title="BitbucketDirectoryEntity">
+
+Schema for Bitbucket directory entity.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| path | str | Path of the directory within the repository |
+| repo_slug | str | Slug of the repository containing this directory |
+| repo_full_name | str | Full name of the repository |
+| workspace_slug | str | Slug of the workspace |
+
+</Accordion>
+
+
+
+
+{/* AUTO-GENERATED CONTENT END */}

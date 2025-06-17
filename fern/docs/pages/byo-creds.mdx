@@ -1,0 +1,397 @@
+---
+title: "Direct Token Authentication"
+subtitle: "Connect OAuth2 sources by providing tokens directly"
+slug: direct-token-auth
+description: "Learn how to create and run source connections using direct token injection instead of the standard OAuth2 flow through the Airweave UI."
+---
+
+Need to connect OAuth2 sources programmatically? Skip the UI flow and provide your tokens directly! Perfect for CI/CD pipelines, custom integrations, and when you need full control over authentication.
+
+<Info title="✨ Two Ways to Authenticate">
+  **UI Flow**: Let Airweave handle OAuth2 automatically through the dashboard
+  **Direct Tokens**: Provide your own tokens via API calls for maximum control
+</Info>
+
+## Why Use Direct Token Authentication?
+
+<CardGroup cols={3}>
+  <Card title="Programmatic Control" icon="fa-solid fa-code">
+    Perfect for CI/CD pipelines and automated workflows that need OAuth2 sources
+  </Card>
+  <Card title="Custom Integration" icon="fa-solid fa-puzzle-piece">
+    When you're building custom auth flows or managing tokens externally
+  </Card>
+  <Card title="Multi-Tenant Apps" icon="fa-solid fa-users">
+    Connect different user accounts without going through Airweave's UI each time
+  </Card>
+</CardGroup>
+
+## Quick Overview
+
+Airweave supports **two authentication approaches** for OAuth2 sources:
+
+1. **🖥️ UI-Based Flow**: Users authenticate through the web interface - Airweave handles everything
+2. **⚡ Direct Injection**: You provide tokens directly via API calls - full programmatic control
+
+<Tip>
+  **Most users should use the UI flow!** It's simpler and Airweave handles token refresh automatically. Only use direct injection when you need programmatic control.
+</Tip>
+
+## How It Works
+
+<Steps>
+  <Step title="Get Your Tokens">
+    Obtain OAuth2 tokens from your target service (outside of Airweave)
+  </Step>
+
+  <Step title="Create Connection">
+    Pass tokens in the `auth_fields` when creating your source connection
+  </Step>
+
+  <Step title="Automatic Management">
+    Airweave stores tokens securely and handles refresh automatically
+  </Step>
+</Steps>
+
+## Creating Connections with Direct Tokens
+
+**Endpoint**: `POST /source-connections/`
+
+### Authentication Schema
+
+The endpoint accepts a `SourceConnectionCreate` object. For direct token authentication, provide the `auth_fields` parameter with your OAuth2 credentials.
+
+<Warning title="Token Requirements">
+  Authentication fields must **exactly match** the source's configuration. Check `backend/airweave/platform/configs/auth.py` for field names.
+</Warning>
+
+### Complete Example
+
+Here's how to create an Asana connection with direct tokens:
+
+<Tabs>
+  <Tab title="cURL">
+    <CodeBlock title="Create Asana Connection">
+    ```bash
+    curl -X POST "https://api.airweave.ai/source-connections/" \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: YOUR_API_KEY" \
+      -d '{
+        "name": "My Asana Connection",
+        "short_name": "asana",
+        "collection": "my-collection",
+        "auth_fields": {
+          "access_token": "1/1234567890abcdef...",
+          "refresh_token": "1/9876543210fedcba..."
+        },
+        "sync_immediately": true
+      }'
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Python SDK">
+    <CodeBlock title="Python Implementation">
+    ```python
+    from airweave import AirweaveSDK
+
+    client = AirweaveSDK(api_key="YOUR_API_KEY")
+
+    # Create connection with direct tokens
+    connection = client.source_connections.create_source_connection(
+        name="My Asana Connection",
+        short_name="asana",
+        collection="my-collection",
+        auth_fields={
+            "access_token": "1/1234567890abcdef...",
+            "refresh_token": "1/9876543210fedcba..."
+        },
+        sync_immediately=True
+    )
+
+    print(f"✅ Created connection: {connection.id}")
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Node.js SDK">
+    <CodeBlock title="Node.js Implementation">
+    ```typescript
+    import { AirweaveSDKClient } from "@airweave/sdk";
+
+    const client = new AirweaveSDKClient({
+      apiKey: "YOUR_API_KEY"
+    });
+
+    // Create connection with direct tokens
+    const connection = await client.sourceConnections.createSourceConnection({
+      name: "My Asana Connection",
+      shortName: "asana",
+      collection: "my-collection",
+      authFields: {
+        accessToken: "1/1234567890abcdef...",
+        refreshToken: "1/9876543210fedcba..."
+      },
+      syncImmediately: true
+    });
+
+    console.log(`✅ Created connection: ${connection.id}`);
+    ```
+    </CodeBlock>
+  </Tab>
+</Tabs>
+
+### What Happens Next
+
+<AccordionGroup>
+  <Accordion title="🔐 Secure Storage">
+    Airweave encrypts and stores your tokens securely in the credential store. They're never exposed in logs or API responses.
+  </Accordion>
+
+  <Accordion title="🔄 Automatic Refresh">
+    For sources with refresh tokens, Airweave automatically refreshes access tokens when they expire - no intervention needed.
+  </Accordion>
+
+  <Accordion title="✅ Validation">
+    Airweave validates that required fields are provided but doesn't verify token validity at creation time. Invalid tokens will cause sync failures.
+  </Accordion>
+</AccordionGroup>
+
+## Token Override for Sync Jobs
+
+Sometimes you need to run a sync with different credentials **without changing the stored connection**. Perfect for testing or user impersonation!
+
+**Endpoint**: `POST /source-connections/{connection_id}/run`
+
+### Standard vs Override Behavior
+
+<CardGroup cols={2}>
+  <Card title="📋 Standard Behavior" icon="fa-solid fa-gear">
+    Uses stored credentials and automatically refreshes tokens as needed
+  </Card>
+  <Card title="⚡ Token Override" icon="fa-solid fa-bolt">
+    Uses your provided token for **this sync only** - doesn't change stored credentials
+  </Card>
+</CardGroup>
+
+### Override Examples
+
+<Tabs>
+  <Tab title="cURL">
+    <CodeBlock title="Run with Token Override">
+    ```bash
+    curl -X POST "https://api.airweave.ai/source-connections/12345/run" \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: YOUR_API_KEY" \
+      -d '{
+        "access_token": "temporary-token-for-this-sync..."
+      }'
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Python SDK">
+    <CodeBlock title="Python Override">
+    ```python
+    # Run sync with temporary token
+    sync_job = client.source_connections.run_source_connection(
+        source_connection_id="12345",
+        access_token="temporary-token-for-this-sync..."
+    )
+
+    print(f"🚀 Started sync job: {sync_job.id}")
+    ```
+    </CodeBlock>
+  </Tab>
+
+  <Tab title="Node.js SDK">
+    <CodeBlock title="Node.js Override">
+    ```typescript
+    // Run sync with temporary token
+    const syncJob = await client.sourceConnections.runSourceConnection(
+      "12345",
+      { accessToken: "temporary-token-for-this-sync..." }
+    );
+
+    console.log(`🚀 Started sync job: ${syncJob.id}`);
+    ```
+    </CodeBlock>
+  </Tab>
+</Tabs>
+
+### Use Cases for Token Override
+
+<CardGroup cols={3}>
+  <Card title="🧪 Testing" icon="fa-solid fa-flask">
+    Validate sync behavior with different user credentials without updating the connection
+  </Card>
+  <Card title="⏱️ Temporary Access" icon="fa-solid fa-clock">
+    Use short-lived tokens without updating stored credentials
+  </Card>
+  <Card title="👥 User Impersonation" icon="fa-solid fa-user-group">
+    Run syncs on behalf of specific users in multi-tenant scenarios
+  </Card>
+</CardGroup>
+
+<Warning title="Important Limitations">
+  - **OAuth2 sources only** - Token override only works with OAuth2 authentication
+  - **Single-use** - The token applies only to the current sync job
+  - **No refresh** - Airweave won't attempt to refresh the provided access token
+  - **Ensure validity** - Make sure the token has necessary permissions and hasn't expired
+</Warning>
+
+## Error Handling & Troubleshooting
+
+Common error scenarios and how to fix them:
+
+<AccordionGroup>
+  <Accordion title="422 Unprocessable Entity">
+    **Problem**: Invalid or missing authentication fields
+
+    **Solutions**:
+    - Check that all required fields are provided
+    - Verify field names match the source's auth configuration
+    - Ensure tokens are properly formatted
+  </Accordion>
+
+  <Accordion title="404 Not Found">
+    **Problem**: Source type not found or connection doesn't exist
+
+    **Solutions**:
+    - Verify the `short_name` matches an available source
+    - Check that the connection ID exists
+    - Ensure you have access to the connection
+  </Accordion>
+
+  <Accordion title="400 Bad Request">
+    **Problem**: Token refresh failed during sync execution
+
+    **Solutions**:
+    - Verify tokens are valid and not expired
+    - Check that tokens have required permissions
+    - Ensure refresh token is still valid
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="🔒 Security First" icon="fa-solid fa-shield">
+    **Never hardcode tokens** in source code or config files
+    **Use environment variables** or secure credential stores
+    **Rotate tokens regularly** for enhanced security
+  </Card>
+  <Card title="📊 Monitoring" icon="fa-solid fa-chart-line">
+    **Monitor sync status** to detect authentication failures quickly
+    **Test tokens** in development before production use
+    **Set up alerts** for failed syncs due to auth issues
+  </Card>
+</CardGroup>
+
+<Success title="💡 Pro Tip">
+  **Use stored credentials when possible!** The standard OAuth2 flow provides better token management and is more reliable for long-term use.
+</Success>
+
+## Common OAuth2 Sources
+
+Here are the exact `auth_fields` required for popular sources:
+
+<AccordionGroup>
+  <Accordion title="Google Services (Drive, Calendar, Gmail)">
+    ```json
+    {
+      "access_token": "ya29.a0AfH6SMBxxxxxx...",
+      "refresh_token": "1//0GxxxxxxxxxxxxxxV8",
+      "client_id": "123456789-abc.apps.googleusercontent.com",
+      "client_secret": "GOCSPX-xxxxxxxxxxxxxxxx"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Microsoft Services (OneDrive, Outlook)">
+    ```json
+    {
+      "access_token": "EwBwA8l6BAAUsxxxxxxxxxxxxxxx",
+      "refresh_token": "M.C525_SNy.xxxxxxxxxxxxxx"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Asana">
+    ```json
+    {
+      "access_token": "1/1234567890:abcdefghij",
+      "refresh_token": "1/9876543210:zyxwvutsrq"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Slack">
+    ```json
+    {
+      "access_token": "xoxb-1234567890-abcdefghij"
+    }
+    ```
+    <Note>Slack uses non-expiring tokens, so no refresh token is needed.</Note>
+  </Accordion>
+
+  <Accordion title="Notion">
+    ```json
+    {
+      "access_token": "ntn_abcdefghijklmnop123456789"
+    }
+    ```
+    <Note>Notion uses non-expiring tokens.</Note>
+  </Accordion>
+</AccordionGroup>
+
+## Alternative: White Label Integration
+
+Building a multi-tenant application? Consider [White Label Integration](/api-concepts#white-label) instead! It lets Airweave handle the OAuth2 flow while maintaining your branding.
+
+<Card
+  title="Learn About White Labeling"
+  icon="fa-solid fa-palette"
+  href="/api-concepts#white-label"
+>
+  Perfect for SaaS applications that need OAuth2 with custom branding
+</Card>
+
+## Reference
+
+- **Authentication configurations**: `backend/airweave/platform/configs/auth.py`
+- **Source connection schema**: `backend/airweave/schemas/source_connection.py`
+- **API documentation**: Available at `/docs` endpoint on your Airweave instance
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="🔌 Browse All Connectors"
+    icon="fa-solid fa-plug"
+    href="/docs/connectors/asana"
+  >
+    See authentication requirements for all 28+ sources
+  </Card>
+  <Card
+    title="🚀 Return to Quickstart"
+    icon="fa-solid fa-rocket"
+    href="/quickstart"
+  >
+    Continue with the quickstart guide
+  </Card>
+  <Card
+    title="🤖 Connect AI Agents"
+    icon="fa-solid fa-robot"
+    href="/mcp-server"
+  >
+    Use your connected data with AI agents
+  </Card>
+  <Card
+    title="💬 Get Support"
+    icon="fa-brands fa-discord"
+    href="https://discord.gg/484HY9Ehxt"
+  >
+    Join our community for help and discussions
+  </Card>
+</CardGroup>

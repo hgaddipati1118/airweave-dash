@@ -1,40 +1,245 @@
 ---
-title: Welcome to our documentation
-subtitle: Get started with the Airweave API
+title: Welcome to Airweave
+subtitle: Make any app searchable for your AI agents in minutes
 slug: welcome
-description: Here you'll find information to get started, as well as sample API / SDK Reference for the Airweave API.
+description: Transform your data sources into searchable knowledge bases that your AI agents can query through our unified API and MCP server.
 ---
 
-Welcome to the Airweave API docs! Here you'll find information about managing and communicating with your Airweave setup.
-
+<Info title="🚀 New: Cloud Version Available">
+  **Get started instantly** with our hosted cloud platform at [app.airweave.ai](https://app.airweave.ai) - no setup required!
+</Info>
 
 ## What is Airweave?
 
-Airweave is an easily configurable platform for turning your (user's 3rd party app) data into **agent knowledge**. It allows you to connect to your data sources, process and store the results for your agents to use with ease.
+**Airweave** transforms any data source into searchable knowledge that your AI agents can access instantly. Connect apps, databases, documents, and productivity tools to create a unified knowledge base accessible through our REST API or MCP server.
 
-## Getting Started
+<Tip title="Perfect for AI Agents">
+When using MCP, Airweave essentially becomes a semantically searchable MCP server that your agents can query across all your connected data sources.
+</Tip>
 
-Here you'll find more resources to get started with Airweave.
+### Why Choose Airweave?
 
-<Cards>
-  <Card title="API Reference" icon="fa-solid fa-code" href="/api-reference" />
+<CardGroup cols={3}>
+  <Card title="Universal Connectivity" icon="fa-solid fa-plug">
+
+    *28+ pre-built connectors* for popular apps, databases, and productivity tools. From Slack to PostgreSQL, we've got you covered.
+  </Card>
+  <Card title="Agent-Ready APIs" icon="fa-solid fa-robot">
+
+    *REST API and MCP server* interfaces designed specifically for AI agents to search and retrieve information seamlessly.
+  </Card>
+  <Card title="Smart Processing" icon="fa-solid fa-brain">
+
+    *Vector and graph databases* with entity extraction, incremental sync, and transformer pipelines for intelligent data processing.
+  </Card>
+</CardGroup>
+
+## Popular Data Sources
+
+Airweave connects to **28+ data sources** out of the box:
+
+<CardGroup cols={4}>
+  <Card
+    title="Notion"
+    icon={<img src="./connectors/notion/icon.svg" alt="Notion" />}
+    href="/docs/connectors/notion"
+  />
+  <Card
+    title="GitHub"
+    icon={<img src="./connectors/github/icon.svg" alt="GitHub" />}
+    href="/docs/connectors/github"
+  />
+  <Card
+    title="Google Drive"
+    icon={<img src="./connectors/google_drive/icon.svg" alt="Google Drive" />}
+    href="/docs/connectors/google-drive"
+  />
+  <Card
+    title="HubSpot"
+    icon={<img src="./connectors/hubspot/icon.svg" alt="HubSpot" />}
+    href="/docs/connectors/hubspot"
+  />
+  <Card
+    title="Slack"
+    icon={<img src="./connectors/slack/icon.svg" alt="Slack" />}
+    href="/docs/connectors/slack"
+  />
+  <Card
+    title="Jira"
+    icon={<img src="./connectors/jira/icon.svg" alt="Jira" />}
+    href="/docs/connectors/jira"
+  />
+  <Card
+    title="Dropbox"
+    icon={<img src="./connectors/dropbox/icon.svg" alt="Dropbox" />}
+    href="/docs/connectors/dropbox"
+  />
+  <Card
+    title="PostgreSQL"
+    icon={<img src="./connectors/postgresql/icon.svg" alt="PostgreSQL" />}
+    href="/docs/connectors/postgresql"
+  />
+</CardGroup>
+
+<Success title="Can't find your data source?">
+  Need a custom connector? Airweave is **highly extensible**. Check our [Extending Connectors](/extending-connectors) guide or reach out to our team.
+</Success>
+
+## How It Works
+
+<Steps>
+  <Step title="Create a Collection">
+    **Set up a collection** - a logical group of data sources that gets its own searchable endpoint. Think of it as your project workspace.
+  </Step>
+
+  <Step title="Connect Your Sources">
+    **Add data sources** to your collection through OAuth2 flows in our UI or API. Data syncs automatically once connected.
+  </Step>
+
+  <Step title="Search Your Data">
+    **Query through APIs** - Use our REST endpoints or MCP server to let your AI agents search across all data in your collection.
+  </Step>
+</Steps>
+
+## Open Source & Community
+
+<CardGroup cols={2}>
+  <Card
+    title="⭐ GitHub Repository"
+    icon="fa-brands fa-github"
+    href="https://github.com/airweave-ai/airweave"
+  >
+    **2,5k+ stars** - Join our growing open-source community
+    View code, contribute, and report issues
+  </Card>
+  <Card
+    title="🤝 Community Support"
+    icon="fa-brands fa-discord"
+    href="https://discord.gg/484HY9Ehxt"
+  >
+    **Active Discord** - Get help from our team and community
+    Share feedback and feature requests
+  </Card>
+</CardGroup>
+
+## Choose Your Path
+
+<Steps>
+  <Step title="Cloud (Recommended)">
+    **Get started in under 2 minutes** with our hosted platform.
+
+    <Card
+      title="Try Airweave Cloud"
+      icon="fa-solid fa-cloud"
+      href="https://app.airweave.ai"
+    >
+      ✅ **No setup required** - Start connecting data sources immediately
+      ✅ **Automatic scaling** - We handle infrastructure and updates
+      ✅ **Built-in security** - Enterprise-grade OAuth2 and multi-tenancy
+      ✅ **Support included** - Direct access to our team
+    </Card>
+
+    <Note>
+      **Free tier available** - Perfect for testing and small projects. Upgrade as you scale.
+    </Note>
+  </Step>
+
+  <Step title="Self-Hosted">
+    **Full control** with our open-source platform deployed in your environment.
+
+    <Card
+      title="Deploy Airweave"
+      icon="fa-brands fa-github"
+      href="/quickstart"
+    >
+      🔧 **Complete control** - Deploy on your infrastructure
+      🔧 **Custom configurations** - Modify and extend as needed
+      🔧 **Data sovereignty** - Keep all data in your environment
+      🔧 **Open source** - Full transparency and community support
+    </Card>
+
+    <Warning title="Technical Setup Required">
+      Self-hosting requires Docker, database setup, and configuration. See our [Setup Guide](/quickstart) for detailed instructions.
+    </Warning>
+  </Step>
+
+  <Step title="On-Premise Enterprise">
+    **Enterprise-grade deployment** with dedicated support and custom configurations.
+
+    <Card
+      title="Enterprise Deployment"
+      icon="fa-solid fa-building"
+      href="mailto:support@airweave.ai?subject=On-Premise Enterprise Deployment"
+    >
+      🏢 **Dedicated infrastructure** - Full isolation and control
+      🏢 **Custom integrations** - Tailored to your enterprise needs
+      🏢 **Premium support** - White-glove onboarding and maintenance
+      🏢 **Compliance ready** - Meet your security and regulatory requirements
+    </Card>
+  </Step>
+</Steps>
+
+## Next Steps
+
+Ready to get started? Here are your options:
+
+<CardGroup cols={2}>
+  <Card
+    title="Cloud"
+    icon="fa-solid fa-cloud"
+    href="https://app.airweave.ai"
+  >
+    **Fastest way to get started**
+    No setup, instant access to all features
+  </Card>
+  <Card
+    title="Quickstart"
+    icon="fa-solid fa-code"
+    href="/quickstart"
+  >
+    **Get up and running quickly**
+    Step-by-step guide to your first sync
+  </Card>
+  <Card
+    title="API Deep Dive"
+    icon="fa-solid fa-server"
+    href="/api-concepts"
+  >
+    **Dive into the technical details**
+    Complete API reference and examples
+  </Card>
+  <Card
+    title="Browse Connectors"
+    icon="fa-solid fa-plug"
+    href="/docs/connectors/asana"
+  >
+    **Browse data sources**
+    Complete list of supported integrations
+  </Card>
+</CardGroup>
+
+## Get Support
+
+<CardGroup cols={3}>
   <Card
     title="Discord Community"
     icon="fa-brands fa-discord"
     href="https://discord.gg/484HY9Ehxt"
-  />
+  >
+    Join our active community for help and discussions
+  </Card>
   <Card
-    title="Blog"
-    icon="fa-solid fa-signal"
-    href="https://blog.airweave.ai"
-  />
-  <Card
-    title="GitHub"
+    title="GitHub Issues"
     icon="fa-brands fa-github"
-    href="https://github.com/airweave-ai/airweave"
-  />
-</Cards>
-
-## Get support
-
-Want to get in touch with us? Open an issue on [GitHub](https://github.com/airweave-ai/airweave/issues/new) or reach out to us via [email](mailto:support@airweave.ai). We're here to help!
+    href="https://github.com/airweave-ai/airweave/issues"
+  >
+    Report bugs, request features, or contribute
+  </Card>
+  <Card
+    title="Direct Support"
+    icon="fa-solid fa-envelope"
+    href="mailto:support@airweave.ai"
+  >
+    Get in touch with our team directly
+  </Card>
+</CardGroup>

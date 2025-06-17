@@ -31,6 +31,89 @@ async def get_sync_dag(
     return dag
 
 
+def _validate_entity_node_edges(dag: schemas.SyncDag, entity_node: schemas.DagNode) -> None:
+    """Validate that entity node has exactly one outgoing edge."""
+    edges_from_entity_node = dag.get_edges_from_node(entity_node.id)
+    if not edges_from_entity_node:
+        raise HTTPException(
+            status_code=400, detail=f"Entity node '{entity_node.name}' has no outgoing edges"
+        )
+    if len(edges_from_entity_node) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Entity node '{entity_node.name}' has more than one outgoing edge. "
+                f"Only one destination is allowed."
+            ),
+        )
+
+
+def _process_transformer_chain(
+    dag: schemas.SyncDag,
+    entity_dag: schemas.SyncDagCreate,
+    current_node: schemas.DagNode,
+    destination_node_create: schemas.DagNodeCreate,
+) -> None:
+    """Process the chain of transformers until reaching a destination."""
+    while True:
+        edges_from_current = dag.get_edges_from_node(current_node.id)
+        if not edges_from_current:
+            raise HTTPException(
+                status_code=400, detail=f"Node '{current_node.name}' has no outgoing edges"
+            )
+
+        if len(edges_from_current) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Node '{current_node.name}' has more than one outgoing edge. "
+                    f"Only one path is allowed."
+                ),
+            )
+
+        edge_from_current = edges_from_current[0]
+        edge_from_current_create = convert_to_edge_create(edge_from_current)
+        entity_dag.edges.append(edge_from_current_create)
+
+        next_node = dag.get_node(edge_from_current.to_node_id)
+
+        if next_node.type == NodeType.destination:
+            # Reached destination, we're done
+            break
+        elif next_node.type == NodeType.transformer:
+            # Add transformer node
+            next_node_create = convert_to_node_create(next_node)
+            entity_dag.nodes.append(next_node_create)
+
+            # Check if this is a web fetcher (which should continue the chain)
+            # or a regular chunker (which should end the chain)
+            if "web_fetcher" in next_node.name.lower() or "web fetcher" in next_node.name.lower():
+                # Web fetcher continues the chain (outputs FileEntity)
+                current_node = next_node
+            else:
+                # Regular transformers (like file_chunker) end the chain
+                # After a transformer, connect directly to destination
+                # (skip parent/chunk entities for UI simplification)
+                transformer_to_dest_edge = schemas.DagEdgeCreate(
+                    from_node_id=next_node.id, to_node_id=destination_node_create.id
+                )
+                entity_dag.edges.append(transformer_to_dest_edge)
+                break
+        elif next_node.type == NodeType.entity:
+            # Add entity node and continue following the chain
+            next_node_create = convert_to_node_create(next_node)
+            entity_dag.nodes.append(next_node_create)
+            current_node = next_node
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Node ({next_node.name}) after '{current_node.name}' "
+                    f"has unsupported type ({next_node.type})."
+                ),
+            )
+
+
 @router.get("/sync/{sync_id}/entity_dags/", response_model=list[schemas.SyncDagCreate])
 async def get_sync_entity_dags(
     sync_id: UUID,
@@ -59,9 +142,6 @@ async def get_sync_entity_dags(
         entity_node = dag.get_node(edge_from_source.to_node_id)
         entity_node_create = convert_to_node_create(entity_node)
 
-        print(entity_node)
-        print("Creating entity DAG")
-
         entity_dag = schemas.SyncDagCreate(
             name=f"{entity_node.name} DAG",
             description=f"Disparate DAG for the entity {entity_node.name}.",
@@ -70,48 +150,10 @@ async def get_sync_entity_dags(
             edges=[edge_from_source_create],
         )
 
-        print("Entity DAG created")
+        _validate_entity_node_edges(dag, entity_node)
+        _process_transformer_chain(dag, entity_dag, entity_node, destination_node_create)
 
-        edges_from_entity_node = dag.get_edges_from_node(entity_node.id)
-        if not edges_from_entity_node:
-            raise HTTPException(
-                status_code=400, detail=f"Entity node '{entity_node.name}' has no outgoing edges"
-            )
-        if len(edges_from_entity_node) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Entity node '{entity_node.name}' has more than one outgoing edge. "
-                    f"Only one destination is allowed."
-                ),
-            )
-
-        # If we reach here, there is exactly one edge leaving the entity node
-        edge_from_entity_node = edges_from_entity_node[0]
-        edge_from_entity_node_create = convert_to_edge_create(edge_from_entity_node)
-        entity_dag.edges.append(edge_from_entity_node_create)
-
-        next_node = dag.get_node(edge_from_entity_node.to_node_id)
-        if next_node.type == NodeType.destination:
-            entity_dags.append(entity_dag)
-        elif next_node.type == NodeType.transformer:
-            next_node_create = convert_to_node_create(next_node)
-            entity_dag.nodes.append(next_node_create)
-
-            # create new edge from transformer node to destination
-            edge_from_transformer_node = schemas.DagEdgeCreate(
-                from_node_id=next_node.id, to_node_id=destination_node.id
-            )
-            entity_dag.edges.append(edge_from_transformer_node)
-            entity_dags.append(entity_dag)
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Node ({next_node.name}) after entity node '{entity_node.name}' "
-                    f"is not of the correct type ({next_node.type})."
-                ),
-            )
+        entity_dags.append(entity_dag)
 
     return entity_dags
 
