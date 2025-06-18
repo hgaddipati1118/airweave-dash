@@ -30,6 +30,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: dash
     permissions:
       id-token: write
       contents: read
