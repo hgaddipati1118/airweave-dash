@@ -243,8 +243,13 @@ class SyncFactory:
             auth_config = resource_locator.get_auth_config(source_model.auth_config_class)
             source_credentials = auth_config.model_validate(decrypted_credential)
 
+            # Special handling for Gmail with Composio integration
+            if source_model.short_name == "gmail":
+                # For Gmail, pass the full credential dictionary with Composio fields
+                # The Gmail source will handle token management internally
+                source_credentials = decrypted_credential
             # if the source_credential has a refresh token, exchange it for an access token
-            if hasattr(source_credentials, "refresh_token") and source_credentials.refresh_token:
+            elif hasattr(source_credentials, "refresh_token") and source_credentials.refresh_token:
                 oauth2_response = await oauth2_service.refresh_access_token(
                     db,
                     source_model.short_name,

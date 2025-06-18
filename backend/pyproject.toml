@@ -47,6 +47,8 @@ firecrawl-py = "^2.7.0"
 temporalio = "^1.8.0"
 azure-storage-blob = "^12.25.1"
 azure-identity = "^1.23.0"
+composio-core = "0.7.15"
+composio-openai = "0.7.15"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

@@ -44,7 +44,7 @@ integrations:
     auth_type: "config_class"
 
   gmail:
-    auth_type: "oauth2_with_refresh"
+    auth_type: "oauth2"
     url: "https://accounts.google.com/o/oauth2/auth"
     backend_url: "https://oauth2.googleapis.com/token"
     grant_type: "authorization_code"

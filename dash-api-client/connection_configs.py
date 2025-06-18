@@ -167,12 +167,15 @@ CONNECTION_CONFIGS: Dict[str, ConfigSpec] = {
     "gmail": {
         "auth_config": {
             "required_fields": [
-                "access_token",
+                "access_token"
+            ],
+            "optional_fields": [
+                "composio_api_key",
+                "entity_id",
                 "refresh_token",
                 "client_id",
                 "client_secret"
             ],
-            "optional_fields": [],
             "docs_url": "https://docs.airweave.ai/docs/connectors/gmail#authentication"
         },
         "required_config_fields": [],
@@ -183,14 +186,13 @@ CONNECTION_CONFIGS: Dict[str, ConfigSpec] = {
             "max_results"   # Maximum number of emails to sync
         ],
         "example": {
-            "name": "My Gmail",
+            "name": "My Gmail with Composio",
             "source_type": "gmail",
             "collection_id": "my_collection",
             "config": {
                 "access_token": "ya29.a0...",
-                "refresh_token": "1//...",
-                "client_id": "your-client-id.apps.googleusercontent.com",
-                "client_secret": "your-client-secret",
+                "composio_api_key": "your-composio-api-key",
+                "entity_id": "your-entity-id",
                 "labels": ["INBOX", "SENT"]
             }
         }

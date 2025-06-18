@@ -6,6 +6,7 @@ Simplified version that retrieves:
   - Attachments
 
 Follows the same structure as other connector implementations.
+Now integrated with Composio for token management.
 """
 
 import base64
@@ -25,45 +26,173 @@ from airweave.platform.entities.gmail import (
 )
 from airweave.platform.sources._base import BaseSource
 
+# Import Composio
+try:
+    from composio import Composio
+    COMPOSIO_AVAILABLE = True
+except ImportError:
+    COMPOSIO_AVAILABLE = False
+    logger.warning("Composio not available. Install with: pip install composio-core")
+
 
 @source(
     name="Gmail",
     short_name="gmail",
-    auth_type=AuthType.oauth2_with_refresh,
+    auth_type=AuthType.oauth2,  # Changed from oauth2_with_refresh
     auth_config_class="GmailAuthConfig",
     config_class="GmailConfig",
     labels=["Communication", "Email"],
 )
 class GmailSource(BaseSource):
-    """Gmail source implementation (read-only).
+    """Gmail source implementation (read-only) with Composio token management.
 
     Retrieves and yields Gmail objects (threads, messages, attachments).
+    Uses Composio to fetch fresh access tokens instead of Google OAuth refresh.
     """
+
+    def __init__(self):
+        """Initialize the Gmail source."""
+        super().__init__()
+        self.access_token = None
+        self.composio_client = None
+        self.entity_id = None
+        self.composio_api_key = None
+        self._token_refresh_count = 0
+        self._max_token_refreshes = 3  # Prevent infinite refresh loops
 
     @classmethod
     async def create(
-        cls, access_token: str, config: Optional[Dict[str, Any]] = None
+        cls, credentials: Dict[str, Any], config: Optional[Dict[str, Any]] = None
     ) -> "GmailSource":
-        """Create a new Gmail source instance with the provided OAuth access token."""
-        logger.info("Creating new GmailSource instance")
+        """Create a new Gmail source instance with Composio integration.
+        
+        Args:
+            credentials: Dictionary containing access_token, composio_api_key, and entity_id
+            config: Optional configuration parameters
+        """
+        logger.info("Creating new GmailSource instance with Composio integration")
         instance = cls()
-        instance.access_token = access_token
+        
+        # Extract credentials
+        if isinstance(credentials, str):
+            # Backward compatibility: if just an access token is passed
+            instance.access_token = credentials
+            logger.warning("Only access token provided, Composio integration disabled")
+        elif isinstance(credentials, dict):
+            instance.access_token = credentials.get("access_token")
+            instance.composio_api_key = credentials.get("composio_api_key")
+            instance.entity_id = credentials.get("entity_id")
+            
+            # Validate that entity_id is provided when using Composio
+            if instance.composio_api_key and not instance.entity_id:
+                logger.error("entity_id is required when using Composio integration")
+                raise ValueError("entity_id is required when composio_api_key is provided")
+            
+            # Initialize Composio client if available
+            if COMPOSIO_AVAILABLE and instance.composio_api_key:
+                try:
+                    instance.composio_client = Composio(api_key=instance.composio_api_key)
+                    logger.info(f"Composio client initialized successfully for entity: {instance.entity_id}")
+                except Exception as e:
+                    logger.error(f"Failed to initialize Composio client: {e}")
+                    instance.composio_client = None
+            else:
+                logger.warning("Composio not available or API key not provided")
+        
         logger.info(f"GmailSource instance created with config: {config}")
         return instance
+
+    async def _refresh_access_token_from_composio(self) -> bool:
+        """Refresh access token using Composio.
+        
+        Returns:
+            bool: True if token was refreshed successfully, False otherwise
+        """
+        if not self.composio_client or not self.entity_id:
+            logger.error("Composio client or entity_id not available for token refresh")
+            return False
+        
+        if self._token_refresh_count >= self._max_token_refreshes:
+            logger.error(f"Maximum token refresh attempts ({self._max_token_refreshes}) exceeded")
+            return False
+        
+        try:
+            logger.info(f"Refreshing access token from Composio for entity: {self.entity_id}")
+            
+            # Get entity and connections from Composio
+            entity = self.composio_client.get_entity(id=self.entity_id)
+            connections = entity.get_connections()
+            
+            # Find Gmail connection
+            for connection in connections:
+                app_name = 'unknown'
+                if hasattr(connection, 'appName') and isinstance(connection.appName, str):
+                    app_name = connection.appName.lower()
+                elif hasattr(connection, 'appName'):
+                    app_name = str(connection.appName).lower()
+                
+                if app_name == 'gmail':
+                    # Extract access token from connection params
+                    if hasattr(connection, 'connectionParams') and connection.connectionParams:
+                        params = connection.connectionParams
+                        if hasattr(params, 'access_token'):
+                            new_access_token = getattr(params, 'access_token')
+                            if new_access_token and new_access_token != self.access_token:
+                                self.access_token = new_access_token
+                                self._token_refresh_count += 1
+                                logger.info("Successfully refreshed access token from Composio")
+                                return True
+                            else:
+                                logger.warning("Same access token received from Composio")
+                                return False
+            
+            logger.error("No Gmail connection found in Composio for entity")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error refreshing token from Composio: {e}")
+            return False
 
     async def _get_with_auth(
         self, client: httpx.AsyncClient, url: str, params: Optional[dict] = None
     ) -> dict:
-        """Make an authenticated GET request to the Gmail API."""
+        """Make an authenticated GET request to the Gmail API with automatic token refresh."""
         logger.info(f"Making authenticated GET request to: {url} with params: {params}")
+        
+        async def make_request():
         headers = {"Authorization": f"Bearer {self.access_token}"}
-        try:
             response = await client.get(url, headers=headers, params=params)
+            return response
+        
+        try:
+            response = await make_request()
             response.raise_for_status()
             data = response.json()
             logger.info(f"Received response from {url} - Status: {response.status_code}")
             logger.debug(f"Response data keys: {list(data.keys())}")
             return data
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                logger.warning("401 Unauthorized - attempting to refresh token from Composio")
+                # Try to refresh token from Composio
+                if await self._refresh_access_token_from_composio():
+                    logger.info("Token refreshed, retrying request")
+                    # Retry the request with new token
+                    try:
+                        response = await make_request()
+                        response.raise_for_status()
+                        data = response.json()
+                        logger.info(f"Retry successful - Status: {response.status_code}")
+                        return data
+                    except Exception as retry_error:
+                        logger.error(f"Retry failed after token refresh: {retry_error}")
+                        raise
+                else:
+                    logger.error("Failed to refresh token from Composio")
+                    raise
+            else:
+                logger.error(f"HTTP error {e.response.status_code}: {e.response.text}")
+                raise
         except Exception as e:
             logger.error(f"Error in API request to {url}: {str(e)}")
             raise

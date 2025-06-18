@@ -32,23 +32,32 @@ async def trigger_sync(
     )
 
 
-@router.get("/{sync_id}/status", response_model=SyncStatusResponse)
+@router.get("/latest/{connection_id}", response_model=SyncStatusResponse)
 @handle_airweave_errors
-async def get_sync_status(
-    sync_id: str,
-    connection_id: str = Query(..., description="The ID of the connection"),
+async def get_latest_sync_status(
+    connection_id: str,
     client: AirweaveClient = Depends(get_client),
     user: AppUser = Depends(get_user)
 ):
-    """Get the status of a sync job."""
-    result = await client.get_sync_job(sync_id, connection_id, app_user=user)
+    """Get the latest sync status for a connection."""
+    result = await client.get_latest_sync_status(connection_id, app_user=user)
+    
+    if not result:
+        return SyncStatusResponse(
+            sync_id="",
+            connection_id=connection_id,
+            status="no_syncs",
+            started_at=None,
+            completed_at=None,
+            error_message="No sync jobs found for this connection"
+        )
     
     return SyncStatusResponse(
         sync_id=result.id,
         connection_id=result.connection_id,
         status=result.status,
         started_at=result.created_at.isoformat() if result.created_at else None,
-        completed_at=result.completed_at.isoformat() if hasattr(result, 'completed_at') and result.completed_at else None,
-        error_message=result.error_message if hasattr(result, 'error_message') else None
+        completed_at=result.completed_at.isoformat() if result.completed_at else None,
+        error_message=result.error_message
     )
 

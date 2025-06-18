@@ -39,7 +39,7 @@ Retrieves and yields Gmail objects (threads, messages, attachments).
 
 ### Authentication
 
-This connector uses **OAuth 2.0 with refresh token**.
+This connector uses **OAuth 2.0 with Composio token management**.
 
 <Card
   title="Authentication Configuration"
@@ -47,34 +47,48 @@ This connector uses **OAuth 2.0 with refresh token**.
   style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '16px', marginBottom: '24px' }}
 >
 
-Gmail authentication credentials schema.
-<ParamField
-  path="client_id"
-  type="Optional[str]"
-  required={false}
->
-  The OAuth client ID for your Google app
-</ParamField>
-<ParamField
-  path="client_secret"
-  type="Optional[str]"
-  required={false}
->
-  The OAuth client secret for your Google app
-</ParamField>
-<ParamField
-  path="refresh_token"
-  type="str"
-  required={true}
->
-  The refresh token for your Gmail app.
-</ParamField>
+Gmail authentication credentials schema with Composio integration.
 <ParamField
   path="access_token"
   type="str"
   required={true}
 >
   The access token for your Gmail app.
+</ParamField>
+<ParamField
+  path="composio_api_key"
+  type="Optional[str]"
+  required={false}
+>
+  The Composio API key for token management (optional).
+</ParamField>
+<ParamField
+  path="entity_id"
+  type="Optional[str]"
+  required={false}
+>
+  Your unique Composio entity ID for token refresh. Each user has their own entity ID in Composio.
+</ParamField>
+<ParamField
+  path="client_id"
+  type="Optional[str]"
+  required={false}
+>
+  The OAuth client ID for your Google app (legacy)
+</ParamField>
+<ParamField
+  path="client_secret"
+  type="Optional[str]"
+  required={false}
+>
+  The OAuth client secret for your Google app (legacy)
+</ParamField>
+<ParamField
+  path="refresh_token"
+  type="Optional[str]"
+  required={false}
+>
+  The refresh token for your Gmail app (legacy).
 </ParamField>
 </Card>
 

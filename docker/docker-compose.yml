@@ -71,6 +71,9 @@ services:
       - TEMPORAL_PORT=7233
       - TEMPORAL_NAMESPACE=default
       - TEMPORAL_ENABLED=true
+      # Composio integration (optional - can be overridden in .env)
+      # Note: COMPOSIO_API_KEY can be shared, but entity_id comes from individual connections
+      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,25 +89,26 @@ services:
       start_period: 60s
     restart: on-failure
 
-  frontend:
-    container_name: airweave-frontend
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    ports:
-      - "${FRONTEND_LOCAL_DEVELOPMENT_PORT:-8080}:8080"
-    environment:
-      - API_URL=http://localhost:8001
-      - ENABLE_AUTH=false
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8080" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: on-failure
+  # Frontend service disabled - not included in this repository
+  # frontend:
+  #   container_name: airweave-frontend
+  #   build:
+  #     context: ../frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "${FRONTEND_LOCAL_DEVELOPMENT_PORT:-8080}:8080"
+  #   environment:
+  #     - API_URL=http://localhost:8001
+  #     - ENABLE_AUTH=false
+  #   depends_on:
+  #     backend:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8080" ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   restart: on-failure
 
   text2vec-transformers:
     container_name: airweave-embeddings
@@ -198,6 +202,9 @@ services:
       - TEMPORAL_NAMESPACE=default
       - TEMPORAL_TASK_QUEUE=airweave-sync-queue
       - TEMPORAL_ENABLED=true
+      # Composio integration (optional - can be overridden in .env)
+      # Note: COMPOSIO_API_KEY can be shared, but entity_id comes from individual connections
+      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY:-}
     volumes:
       - ../backend:/app
     entrypoint: [ "python", "-m", "airweave.platform.temporal.worker" ]
@@ -206,6 +213,37 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
+    restart: on-failure
+
+  dash-api-client:
+    container_name: airweave-dash-api-client
+    build:
+      context: ../dash-api-client
+      dockerfile: Dockerfile
+    # Import all variables from .env file
+    env_file:
+      - ../.env
+    ports:
+      - "8002:8002"
+    volumes:
+      - ../dash-api-client:/app
+    environment:
+      # Point to the backend service for API communication
+      - AIRWEAVE_API_URL=http://backend:8001
+      # Default user configuration (can be overridden in .env)
+      - AIRWEAVE_DEFAULT_USER_ID=${DASH_USER_ID:-dash_team}
+      - AIRWEAVE_DEFAULT_USER_EMAIL=${DASH_USER_EMAIL:-founders@usedash.ai}
+      - AIRWEAVE_DEFAULT_USER_NAME=${DASH_USER_NAME:-Dash Team}
+      - AIRWEAVE_LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8002/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: on-failure
 
 volumes:

@@ -228,21 +228,33 @@ class GitHubAuthConfig(AuthConfig):
 
 
 class GmailAuthConfig(AuthConfig):
-    """Gmail authentication credentials schema."""
+    """Gmail authentication credentials schema with Composio integration."""
 
+    access_token: str = Field(
+        title="Access Token", description="The access token for your Gmail app."
+    )
+    composio_api_key: Optional[str] = Field(
+        default=None,
+        title="Composio API Key", 
+        description="The Composio API key for token management (optional)."
+    )
+    entity_id: Optional[str] = Field(
+        default=None,
+        title="Entity ID", 
+        description="Your unique Composio entity ID for token refresh. Each user has their own entity ID in Composio."
+    )
+    # Keep legacy fields for backward compatibility
     client_id: Optional[str] = Field(
-        default=None, title="Client ID", description="The OAuth client ID for your Google app"
+        default=None, title="Client ID", description="The OAuth client ID for your Google app (legacy)"
     )
     client_secret: Optional[str] = Field(
         default=None,
         title="Client Secret",
-        description="The OAuth client secret for your Google app",
+        description="The OAuth client secret for your Google app (legacy)",
     )
-    refresh_token: str = Field(
-        title="Refresh Token", description="The refresh token for your Gmail app."
-    )
-    access_token: str = Field(
-        title="Access Token", description="The access token for your Gmail app."
+    refresh_token: Optional[str] = Field(
+        default=None,
+        title="Refresh Token", description="The refresh token for your Gmail app (legacy)."
     )
 
 

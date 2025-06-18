@@ -72,6 +72,35 @@ else
     echo "MISTRAL_API_KEY=\"your-api-key-here\""
 fi
 
+# Ask for Composio configuration
+echo ""
+echo "Composio integration enables advanced Gmail token management."
+echo "This is optional but recommended if you plan to use Gmail with automatic token refresh."
+echo "Note: Each Gmail connection will use its own entity ID, but you can set a shared API key here."
+read -p "Would you like to configure Composio API key now? (y/n): " ADD_COMPOSIO_CONFIG
+
+if [ "$ADD_COMPOSIO_CONFIG" = "y" ] || [ "$ADD_COMPOSIO_CONFIG" = "Y" ]; then
+    read -p "Enter your Composio API key (get from https://app.composio.dev): " COMPOSIO_KEY
+
+    # Remove any existing Composio API key
+    grep -v "^COMPOSIO_API_KEY=" .env > .env.tmp
+    mv .env.tmp .env
+
+    # Add the new Composio API key
+    echo "COMPOSIO_API_KEY=\"$COMPOSIO_KEY\"" >> .env
+    echo "Composio API key added to .env file."
+    echo ""
+    echo "✅ Composio integration configured!"
+    echo "   When creating Gmail connections, you'll provide the entity ID specific to each user."
+    echo "   This API key will be used for all Composio token refresh operations."
+else
+    echo "Composio configuration skipped. You can add it later by editing the .env file manually."
+    echo "Add the following line to your .env file:"
+    echo "COMPOSIO_API_KEY=\"your-composio-api-key\""
+    echo ""
+    echo "Note: Entity IDs are provided per connection, not globally."
+fi
+
 # Check if "docker compose" is available (Docker Compose v2)
 if docker compose version >/dev/null 2>&1; then
   COMPOSE_CMD="docker compose"
@@ -142,13 +171,13 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   fi
 done
 
-# Check if frontend needs to be started manually
-FRONTEND_STATUS=$(${CONTAINER_CMD} inspect airweave-frontend --format='{{.State.Status}}' 2>/dev/null)
-if [ "$FRONTEND_STATUS" = "created" ] || [ "$FRONTEND_STATUS" = "exited" ]; then
-  echo "Starting frontend container..."
-  ${CONTAINER_CMD} start airweave-frontend
-  sleep 5
-fi
+# Frontend service is disabled in this setup
+# FRONTEND_STATUS=$(${CONTAINER_CMD} inspect airweave-frontend --format='{{.State.Status}}' 2>/dev/null)
+# if [ "$FRONTEND_STATUS" = "created" ] || [ "$FRONTEND_STATUS" = "exited" ]; then
+#   echo "Starting frontend container..."
+#   ${CONTAINER_CMD} start airweave-frontend
+#   sleep 5
+# fi
 
 # Final status check
 echo ""
@@ -162,11 +191,14 @@ else
   echo "❌ Backend API:    Not responding (check logs with: docker logs airweave-backend)"
 fi
 
-if curl -f http://localhost:8080 >/dev/null 2>&1; then
-  echo "✅ Frontend UI:    http://localhost:8080"
+if ${CONTAINER_CMD} exec airweave-dash-api-client curl -f http://localhost:8002/health >/dev/null 2>&1; then
+  echo "✅ Dash API Client: http://localhost:8002"
 else
-  echo "❌ Frontend UI:    Not responding (check logs with: docker logs airweave-frontend)"
+  echo "❌ Dash API Client: Not responding (check logs with: docker logs airweave-dash-api-client)"
 fi
+
+# Frontend service is disabled
+echo "⚪ Frontend UI:    Disabled (not included in this setup)"
 
 echo ""
 echo "Other services:"
