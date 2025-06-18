@@ -105,6 +105,33 @@ jobs:
           echo "Default VPC: $DEFAULT_VPC_ID"
           echo "Default Subnets: $DEFAULT_SUBNETS"
 
+      - name: Check and handle existing stack
+        run: |
+          STACK_NAME="${{ env.ENVIRONMENT }}-airweave-simple-stack"
+          
+          # Check if stack exists and get its status
+          STACK_STATUS=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].StackStatus' \
+            --output text 2>/dev/null || echo "STACK_NOT_EXISTS")
+          
+          echo "Stack status: $STACK_STATUS"
+          
+          # If stack is in ROLLBACK_COMPLETE state, delete it
+          if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Stack is in ROLLBACK_COMPLETE state. Deleting it first..."
+            aws cloudformation delete-stack \
+              --stack-name $STACK_NAME \
+              --region ${{ env.AWS_REGION }}
+            
+            echo "Waiting for stack deletion to complete..."
+            aws cloudformation wait stack-delete-complete \
+              --stack-name $STACK_NAME \
+              --region ${{ env.AWS_REGION }}
+            echo "Stack deleted successfully."
+          fi
+
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
