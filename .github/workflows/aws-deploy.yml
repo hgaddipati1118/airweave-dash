@@ -126,19 +126,19 @@ jobs:
         run: |
           # Get stack outputs
           ALB_URL=$(aws cloudformation describe-stacks \
-            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-simple-stack \
             --region ${{ env.AWS_REGION }} \
             --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerURL`].OutputValue' \
             --output text)
           
           BACKEND_URL=$(aws cloudformation describe-stacks \
-            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-simple-stack \
             --region ${{ env.AWS_REGION }} \
             --query 'Stacks[0].Outputs[?OutputKey==`BackendAPIURL`].OutputValue' \
             --output text)
           
           DASH_CLIENT_URL=$(aws cloudformation describe-stacks \
-            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-simple-stack \
             --region ${{ env.AWS_REGION }} \
             --query 'Stacks[0].Outputs[?OutputKey==`DashClientAPIURL`].OutputValue' \
             --output text)
