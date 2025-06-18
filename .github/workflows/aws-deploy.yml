@@ -30,7 +30,6 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: dash
     permissions:
       id-token: write
       contents: read
@@ -109,18 +108,16 @@ jobs:
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
-            --template-file aws/cloudformation/airweave-infrastructure.yaml \
-            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --template-file aws/cloudformation/airweave-simple.yaml \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-simple-stack \
             --parameter-overrides \
               Environment=${{ env.ENVIRONMENT }} \
-              DefaultVPC=${{ steps.vpc-info.outputs.default-vpc }} \
-              DefaultSubnets=${{ steps.vpc-info.outputs.default-subnets }} \
               DatabasePassword="${{ secrets.DB_PASSWORD }}" \
               EncryptionKey="${{ secrets.ENCRYPTION_KEY }}" \
               OpenAIApiKey="${{ secrets.OPENAI_API_KEY }}" \
               MistralApiKey="${{ secrets.MISTRAL_API_KEY }}" \
               ComposioApiKey="${{ secrets.COMPOSIO_API_KEY }}" \
-            --capabilities CAPABILITY_NAMED_IAM \
+            --capabilities CAPABILITY_IAM \
             --region ${{ env.AWS_REGION }} \
             --no-fail-on-empty-changeset
 
