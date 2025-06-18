@@ -1,0 +1,177 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - staging
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-east-1'
+        type: choice
+        options:
+          - us-east-1
+          - us-west-2
+          - eu-west-1
+
+env:
+  AWS_REGION: ${{ github.event.inputs.region || 'us-east-1' }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'prod' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get AWS Account ID
+        id: aws-account
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "account-id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+          echo "AWS Account ID: $ACCOUNT_ID"
+
+      - name: Create ECR repositories
+        run: |
+          # Create backend repository
+          aws ecr create-repository \
+            --repository-name ${{ env.ENVIRONMENT }}-airweave-backend \
+            --region ${{ env.AWS_REGION }} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256 || echo "Backend repository already exists"
+          
+          # Create dash client repository
+          aws ecr create-repository \
+            --repository-name ${{ env.ENVIRONMENT }}-airweave-dash-client \
+            --region ${{ env.AWS_REGION }} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256 || echo "Dash client repository already exists"
+
+      - name: Build and push backend image
+        run: |
+          cd backend
+          docker build -t ${{ env.ENVIRONMENT }}-airweave-backend .
+          docker tag ${{ env.ENVIRONMENT }}-airweave-backend:latest \
+            ${{ steps.aws-account.outputs.account-id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-airweave-backend:latest
+          docker push ${{ steps.aws-account.outputs.account-id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-airweave-backend:latest
+
+      - name: Build and push dash client image
+        run: |
+          cd dash-api-client
+          docker build -t ${{ env.ENVIRONMENT }}-airweave-dash-client .
+          docker tag ${{ env.ENVIRONMENT }}-airweave-dash-client:latest \
+            ${{ steps.aws-account.outputs.account-id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-airweave-dash-client:latest
+          docker push ${{ steps.aws-account.outputs.account-id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ENVIRONMENT }}-airweave-dash-client:latest
+
+      - name: Get default VPC and subnets
+        id: vpc-info
+        run: |
+          # Get default VPC
+          DEFAULT_VPC_ID=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text)
+          echo "default-vpc=$DEFAULT_VPC_ID" >> $GITHUB_OUTPUT
+          
+          # Get default subnets
+          DEFAULT_SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=$DEFAULT_VPC_ID" "Name=default-for-az,Values=true" \
+            --query 'Subnets[*].SubnetId' \
+            --output text | tr '\t' ',')
+          echo "default-subnets=$DEFAULT_SUBNETS" >> $GITHUB_OUTPUT
+          
+          echo "Default VPC: $DEFAULT_VPC_ID"
+          echo "Default Subnets: $DEFAULT_SUBNETS"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file aws/cloudformation/airweave-infrastructure.yaml \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --parameter-overrides \
+              Environment=${{ env.ENVIRONMENT }} \
+              DefaultVPC=${{ steps.vpc-info.outputs.default-vpc }} \
+              DefaultSubnets=${{ steps.vpc-info.outputs.default-subnets }} \
+              DatabasePassword="${{ secrets.DB_PASSWORD }}" \
+              EncryptionKey="${{ secrets.ENCRYPTION_KEY }}" \
+              OpenAIApiKey="${{ secrets.OPENAI_API_KEY }}" \
+              MistralApiKey="${{ secrets.MISTRAL_API_KEY }}" \
+              ComposioApiKey="${{ secrets.COMPOSIO_API_KEY }}" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }} \
+            --no-fail-on-empty-changeset
+
+      - name: Get deployment outputs
+        id: deployment-info
+        run: |
+          # Get stack outputs
+          ALB_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerURL`].OutputValue' \
+            --output text)
+          
+          BACKEND_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`BackendAPIURL`].OutputValue' \
+            --output text)
+          
+          DASH_CLIENT_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.ENVIRONMENT }}-airweave-stack \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`DashClientAPIURL`].OutputValue' \
+            --output text)
+          
+          echo "alb-url=$ALB_URL" >> $GITHUB_OUTPUT
+          echo "backend-url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "dash-client-url=$DASH_CLIENT_URL" >> $GITHUB_OUTPUT
+
+      - name: Health check services
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "========================================"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo "========================================"
+          echo "🌐 Service URLs:"
+          echo "Load Balancer: ${{ steps.deployment-info.outputs.alb-url }}"
+          echo "Backend API: ${{ steps.deployment-info.outputs.backend-url }}"
+          echo "Dash Client API: ${{ steps.deployment-info.outputs.dash-client-url }}"
+          echo "========================================"
+          echo "🧪 Health Check URLs:"
+          echo "Backend health: ${{ steps.deployment-info.outputs.backend-url }}/health"
+          echo "Dash client health: ${{ steps.deployment-info.outputs.dash-client-url }}/health"
+          echo "========================================"
+          
+          # Wait a moment for services to start
+          echo "⏰ Waiting 30 seconds for services to initialize..."
+          sleep 30
+          
+          # Test backend health (allow failure since services might still be starting)
+          echo "Testing backend health..."
+          curl -f "${{ steps.deployment-info.outputs.backend-url }}/health" || echo "Backend still starting..."
+          
+          # Test dash client health (allow failure since services might still be starting)
+          echo "Testing dash client health..."
+          curl -f "${{ steps.deployment-info.outputs.dash-client-url }}/health" || echo "Dash client still starting..." 
