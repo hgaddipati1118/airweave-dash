@@ -1,0 +1,490 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Airweave Complete System - Backend API + Dash API Client on AWS'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+  
+  DefaultVPC:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Default VPC ID to use for deployment'
+  
+  DefaultSubnets:
+    Type: CommaDelimitedList
+    Description: 'Default subnet IDs for ALB (at least 2 in different AZs)'
+  
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    MinLength: 12
+    MaxLength: 41
+    Description: 'Password for PostgreSQL database'
+    ConstraintDescription: 'Must be 12-41 characters'
+  
+  EncryptionKey:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: 'Base64 encryption key for application'
+  
+  OpenAIApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: 'OpenAI API key (optional)'
+  
+  MistralApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: 'Mistral API key (optional)'
+  
+  ComposioApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: 'Composio API key for Gmail integration (optional)'
+
+Resources:
+
+  # Security Groups
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Environment}-airweave-alb-sg'
+      GroupDescription: 'Security group for Application Load Balancer'
+      VpcId: !Ref DefaultVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-alb-sg'
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Environment}-airweave-ecs-sg'
+      GroupDescription: 'Security group for ECS tasks'
+      VpcId: !Ref DefaultVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8001
+          ToPort: 8002
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-ecs-sg'
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Environment}-airweave-db-sg'
+      GroupDescription: 'Security group for RDS PostgreSQL'
+      VpcId: !Ref DefaultVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-db-sg'
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Environment}-airweave-redis-sg'
+      GroupDescription: 'Security group for ElastiCache Redis'
+      VpcId: !Ref DefaultVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-redis-sg'
+
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${Environment}-airweave-alb'
+      Scheme: internet-facing
+      Type: application
+      Subnets: !Ref DefaultSubnets
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-alb'
+
+  # Target Groups
+  BackendTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${Environment}-airweave-backend-tg'
+      Port: 8001
+      Protocol: HTTP
+      VpcId: !Ref DefaultVPC
+      TargetType: ip
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+
+  DashClientTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${Environment}-airweave-dash-tg'
+      Port: 8002
+      Protocol: HTTP
+      VpcId: !Ref DefaultVPC
+      TargetType: ip
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+
+  # ALB Listener
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref BackendTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # Listener Rules
+  DashClientListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref DashClientTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '/dash/*'
+      ListenerArn: !Ref ALBListener
+      Priority: 100
+
+  # RDS PostgreSQL Instance (using default VPC)
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub '${Environment}-airweave-db'
+      DBInstanceClass: 'db.t3.micro'
+      Engine: postgres
+      EngineVersion: '16.4'
+      AllocatedStorage: 20
+      StorageType: gp2
+      StorageEncrypted: true
+      DBName: airweave
+      MasterUsername: airweave
+      MasterUserPassword: !Ref DatabasePassword
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      BackupRetentionPeriod: 7
+      MultiAZ: false
+      PubliclyAccessible: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-db'
+
+  # ElastiCache Redis (using default VPC)
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: !Sub '${Environment}-airweave-redis'
+      Engine: redis
+      CacheNodeType: cache.t3.micro
+      NumCacheNodes: 1
+      VpcSecurityGroupIds:
+        - !Ref RedisSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-redis'
+
+  # ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${Environment}-airweave-cluster'
+      CapacityProviders:
+        - FARGATE
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-airweave-cluster'
+
+  # ECS Task Execution Role
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Environment}-airweave-ecs-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # ECS Task Role
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Environment}-airweave-ecs-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: '*'
+
+  # CloudWatch Log Groups
+  BackendLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${Environment}-airweave-backend'
+      RetentionInDays: 7
+
+  DashClientLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${Environment}-airweave-dash-client'
+      RetentionInDays: 7
+
+  TemporalLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${Environment}-airweave-temporal'
+      RetentionInDays: 7
+
+  # ECS Task Definitions
+  BackendTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${Environment}-airweave-backend'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '512'
+      Memory: '1024'
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: backend
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Environment}-airweave-backend:latest'
+          PortMappings:
+            - ContainerPort: 8001
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: POSTGRES_HOST
+              Value: !GetAtt DatabaseInstance.Endpoint.Address
+            - Name: POSTGRES_DB
+              Value: airweave
+            - Name: POSTGRES_USER
+              Value: airweave
+            - Name: POSTGRES_PASSWORD
+              Value: !Ref DatabasePassword
+            - Name: REDIS_HOST
+              Value: !GetAtt RedisCluster.RedisEndpoint.Address
+            - Name: REDIS_PORT
+              Value: '6379'
+            - Name: ENCRYPTION_KEY
+              Value: !Ref EncryptionKey
+            - Name: OPENAI_API_KEY
+              Value: !Ref OpenAIApiKey
+            - Name: MISTRAL_API_KEY
+              Value: !Ref MistralApiKey
+            - Name: COMPOSIO_API_KEY
+              Value: !Ref ComposioApiKey
+            - Name: SKIP_AZURE_STORAGE
+              Value: 'true'
+            - Name: LOCAL_DEVELOPMENT
+              Value: 'false'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref BackendLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - 'curl -f http://localhost:8001/health || exit 1'
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 60
+
+  DashClientTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${Environment}-airweave-dash-client'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '256'
+      Memory: '512'
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: dash-client
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Environment}-airweave-dash-client:latest'
+          PortMappings:
+            - ContainerPort: 8002
+              Protocol: tcp
+          Environment:
+            - Name: AIRWEAVE_API_URL
+              Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+            - Name: AIRWEAVE_DEFAULT_USER_ID
+              Value: 'dash_team'
+            - Name: AIRWEAVE_DEFAULT_USER_EMAIL
+              Value: 'founders@usedash.ai'
+            - Name: AIRWEAVE_DEFAULT_USER_NAME
+              Value: 'Dash Team'
+            - Name: AIRWEAVE_LOG_LEVEL
+              Value: 'INFO'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref DashClientLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - 'curl -f http://localhost:8002/health || exit 1'
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 30
+
+  # ECS Services
+  BackendService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      ServiceName: !Sub '${Environment}-airweave-backend'
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref BackendTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          Subnets: !Ref DefaultSubnets
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - ContainerName: backend
+          ContainerPort: 8001
+          TargetGroupArn: !Ref BackendTargetGroup
+      HealthCheckGracePeriodSeconds: 120
+
+  DashClientService:
+    Type: AWS::ECS::Service
+    DependsOn: 
+      - ALBListener
+      - BackendService
+    Properties:
+      ServiceName: !Sub '${Environment}-airweave-dash-client'
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref DashClientTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          Subnets: !Ref DefaultSubnets
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - ContainerName: dash-client
+          ContainerPort: 8002
+          TargetGroupArn: !Ref DashClientTargetGroup
+      HealthCheckGracePeriodSeconds: 60
+
+Outputs:
+  LoadBalancerURL:
+    Description: 'Application Load Balancer URL'
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+    Export:
+      Name: !Sub '${Environment}-airweave-alb-url'
+
+  BackendAPIURL:
+    Description: 'Backend API URL'
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+    Export:
+      Name: !Sub '${Environment}-airweave-backend-url'
+
+  DashClientAPIURL:
+    Description: 'Dash Client API URL'
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}/dash'
+    Export:
+      Name: !Sub '${Environment}-airweave-dash-client-url'
+
+  DatabaseEndpoint:
+    Description: 'RDS PostgreSQL Endpoint'
+    Value: !GetAtt DatabaseInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${Environment}-airweave-db-endpoint'
+
+  RedisEndpoint:
+    Description: 'ElastiCache Redis Endpoint'
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub '${Environment}-airweave-redis-endpoint'
+
+  ECSClusterName:
+    Description: 'ECS Cluster Name'
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${Environment}-airweave-ecs-cluster' 
