@@ -1,0 +1,226 @@
+integrations:
+  asana:
+    auth_type: "oauth2_with_refresh"
+    url: "https://app.asana.com/-/oauth_authorize"
+    backend_url: "https://app.asana.com/-/oauth_token"
+    grant_type: "authorization_code"
+    client_id: "1210254697753834"
+    client_secret: "asana-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+
+  bitbucket:
+    auth_type: "config_class"
+
+  confluence:
+    auth_type: "oauth2_with_refresh_rotating"
+    url: "https://auth.atlassian.com/authorize"
+    backend_url: "https://auth.atlassian.com/oauth/token"
+    grant_type: "authorization_code"
+    client_id: "GZ498YeGyBfuoeVILbinMFGyZP4lazzW"
+    client_secret: "confluence-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "offline_access read:content:confluence read:page:confluence read:space:confluence read:user:confluence read:comment:confluence read:attachment:confluence read:configuration:confluence"
+    additional_frontend_params:
+      audience: "api.atlassian.com"
+      prompt: "consent"
+      response_mode: "query"
+      state: "YOUR_USER_BOUND_VALUE"
+
+  dropbox:
+    auth_type: "oauth2_with_refresh"
+    url: "https://www.dropbox.com/oauth2/authorize"
+    backend_url: "https://api.dropbox.com/oauth2/token"
+    grant_type: "authorization_code"
+    client_id: "g061pqv1f97gv8v"
+    client_secret: "dropbox-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    additional_frontend_params:
+      token_access_type: "offline"
+
+  github:
+    auth_type: "config_class"
+
+  gmail:
+    auth_type: "oauth2"
+    url: "https://accounts.google.com/o/oauth2/auth"
+    backend_url: "https://oauth2.googleapis.com/token"
+    grant_type: "authorization_code"
+    client_id: "502433363466-d8ruvkdb3nkafulj63tnenn8iud31sks.apps.googleusercontent.com"
+    client_secret: "gmail-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "https://www.googleapis.com/auth/gmail.readonly"
+    additional_frontend_params:
+      access_type: "offline"
+      prompt: "consent"
+
+  google_calendar:
+    auth_type: "oauth2_with_refresh"
+    url: "https://accounts.google.com/o/oauth2/auth"
+    backend_url: "https://oauth2.googleapis.com/token"
+    grant_type: "authorization_code"
+    client_id: "818502206676-21n4c60uj6ptrakgboqmfn24rv9jfrln.apps.googleusercontent.com"
+    client_secret: "google-calendar-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "https://www.googleapis.com/auth/calendar.events.public.readonly https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.calendars.readonly https://www.googleapis.com/auth/calendar.events.owned.readonly https://www.googleapis.com/auth/calendar.events.readonly"
+    additional_frontend_params:
+      access_type: "offline"
+      prompt: "consent"
+
+  google_drive:
+    auth_type: "oauth2_with_refresh"
+    url: "https://accounts.google.com/o/oauth2/auth"
+    backend_url: "https://oauth2.googleapis.com/token"
+    grant_type: "authorization_code"
+    client_id: "601744717220-9vm930uaaves5imp29dfvst7c4qd626s.apps.googleusercontent.com"
+    client_secret: "google-drive-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "https://www.googleapis.com/auth/docs https://www.googleapis.com/auth/drive.photos.readonly https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.metadata https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/gmail.readonly"
+    additional_frontend_params:
+      access_type: "offline"
+      prompt: "consent"
+
+  hubspot:
+    auth_type: "oauth2_with_refresh"
+    url: "https://app.hubspot.com/oauth/authorize"
+    backend_url: "https://api.hubapi.com/oauth/v1/token"
+    grant_type: "authorization_code"
+    client_id: "1fd7cc05-9b94-4c48-895f-b573fc008db1"
+    client_secret: "hubspot-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "crm.objects.companies.read crm.objects.contacts.read crm.objects.deals.read oauth tickets"
+
+  intercom:
+    auth_type: "oauth2"
+    url: "https://app.intercom.com/oauth"
+    backend_url: "https://api.intercom.io/auth/eagle/token"
+    grant_type: "authorization_code"
+    client_id: "0e331a70-2c91-4998-b4bf-8af42d681454"
+    client_secret: "intercom-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "read write"
+
+  jira:
+    auth_type: "oauth2_with_refresh_rotating"
+    url: "https://auth.atlassian.com/authorize"
+    backend_url: "https://auth.atlassian.com/oauth/token"
+    grant_type: "authorization_code"
+    client_id: "8P9xJFpikhvJgchkb3IY4litiTyzI8jZ"
+    client_secret: "jira-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "read offline_access manage:jira-configuration manage:jira-project read:jira-user read:jira-work read:workflow:jira read:application-role:jira read:avatar:jira read:group:jira read:issue-type:jira read:issue-type-hierarchy:jira read:user:jira read:project:jira read:project-category:jira read:project.component:jira read:project.property:jira read:project-version:jira read:workflow:jira"
+    additional_frontend_params:
+      audience: "api.atlassian.com"
+      prompt: "consent"
+      response_mode: "query"
+      state: "YOUR_USER_BOUND_VALUE"
+
+  linear:
+    auth_type: "oauth2"
+    url: "https://linear.app/oauth/authorize"
+    backend_url: "https://api.linear.app/oauth/token"
+    grant_type: "authorization_code"
+    client_id: "5523af771cfdae786cee57085942b25c"
+    client_secret: "linear-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "read"
+
+  monday:
+    auth_type: "oauth2"
+    url: "https://auth.monday.com/oauth2/authorize"
+    backend_url: "https://auth.monday.com/oauth2/token"
+    grant_type: "authorization_code"
+    client_id: "b95597adf2b837397447bb24130000ca"
+    client_secret: "monday-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "me:read boards:read docs:read workspaces:read users:read account:read updates:read assets:read tags:read teams:read"
+
+  notion:
+    auth_type: "oauth2"
+    url: "https://api.notion.com/v1/oauth/authorize"
+    backend_url: "https://api.notion.com/v1/oauth/token"
+    grant_type: "authorization_code"
+    client_id: "1f3d872b-594c-807d-b0ce-00372693f17e"
+    client_secret: "notion-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "header"
+    additional_frontend_params:
+      owner: "user"
+
+  outlook_calendar:
+    auth_type: "oauth2_with_refresh_rotating"
+    url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+    backend_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+    grant_type: "authorization_code"
+    client_id: "8439da28-db01-4923-b775-0f18508518f6"
+    client_secret: "outlook-calendar-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.Read.Shared"
+    additional_frontend_params:
+      response_mode: "query"
+
+  outlook_mail:
+    auth_type: "oauth2_with_refresh_rotating"
+    url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+    backend_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+    grant_type: "authorization_code"
+    client_id: "b1e07016-028c-478a-91ac-ab5218fa47ea"
+    client_secret: "outlook-mail-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/MailboxFolder.Read https://graph.microsoft.com/Mail.Read"
+    additional_frontend_params:
+      response_mode: "query"
+
+  slack:
+    auth_type: "oauth2"
+    url: "https://slack.com/oauth/v2/authorize"
+    backend_url: "https://slack.com/api/oauth.v2.access"
+    grant_type: "authorization_code"
+    client_id: "6769618979345.8891055640118"
+    client_secret: "slack-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "app_mentions:read,channels:history,channels:join,channels:read,groups:history,groups:read,im:history,im:read,mpim:history,mpim:read,users:read"
+
+  stripe:
+    auth_type: "api_key"
+
+  todoist:
+    auth_type: "oauth2"
+    url: "https://todoist.com/oauth/authorize"
+    backend_url: "https://todoist.com/oauth/access_token"
+    grant_type: "authorization_code"
+    client_id: "74e8b22d71a14e51b78e53e7c3e4fbc8"
+    client_secret: "todoist-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "data:read"
+
+  clickup:
+    auth_type: "oauth2"
+    url: "https://app.clickup.com/api"
+    backend_url: "https://api.clickup.com/api/v2/oauth/token"
+    grant_type: "authorization_code"
+    client_id: "30LY0PV6VDDFDP0R6XB74N7FGNCLA41V"
+    client_secret: "clickup-client-secret-key"
+    content_type: "application/x-www-form-urlencoded"
+    client_credential_location: "body"
+    scope: "public data:read team:read space:read list:read folder:read task:read comment:read"
+    additional_frontend_params:
+      access_type: "offline"
+      prompt: "consent"
+
+  qdrant:
+    auth_type: "config_class"
