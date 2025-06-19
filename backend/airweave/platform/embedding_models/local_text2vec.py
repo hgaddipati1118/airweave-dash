@@ -110,7 +110,9 @@ class LocalText2Vec(BaseEmbeddingModel):
                         response.raise_for_status()
                         result.append(response.json()["vector"])
                     except Exception as e:
-                        logger.error(f"Error embedding text: {e}")
+                        logger.error(f"Error embedding text (length: {len(text)}): {str(e)}", exc_info=True)
+                        logger.error(f"Failed text content preview (first 500 chars): {text[:500]}")
+                        logger.error(f"Inference URL being used: {self.inference_url}")
                         # Return zero vector for failed embedding
                         result.append([0.0] * self.vector_dimensions)
                 else:

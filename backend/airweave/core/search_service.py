@@ -137,7 +137,9 @@ class SearchService:
             logger.error(f"Vector database connection error: {str(e)}")
             raise ConnectionError(f"Unable to connect to vector database: {str(e)}") from e
         except Exception as e:
-            logger.error(f"Search error: {str(e)}")
+            logger.error(f"Search error for collection {readable_id} with query '{query}': {str(e)}", exc_info=True)
+            logger.error(f"Collection ID: {collection.id if 'collection' in locals() else 'N/A'}")
+            logger.error(f"Using OpenAI embeddings: {bool(settings.OPENAI_API_KEY)}")
             # Add more context to the error
             if "connection" in str(e).lower():
                 raise ConnectionError(f"Vector database connection failed: {str(e)}") from e
