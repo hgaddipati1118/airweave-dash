@@ -160,7 +160,7 @@ class GmailSource(BaseSource):
         logger.info(f"Making authenticated GET request to: {url} with params: {params}")
         
         async def make_request():
-        headers = {"Authorization": f"Bearer {self.access_token}"}
+            headers = {"Authorization": f"Bearer {self.access_token}"}
             response = await client.get(url, headers=headers, params=params)
             return response
         
