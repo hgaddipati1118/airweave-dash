@@ -1,0 +1,124 @@
+name: Fast Deploy to AWS (Application Only)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - staging
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-east-1'
+        type: choice
+        options:
+          - us-east-1
+          - us-west-2
+          - eu-west-1
+      deploy_infrastructure:
+        description: 'Deploy infrastructure stack (database/cache) - takes 20 minutes'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AWS_REGION: ${{ github.event.inputs.region || 'us-east-1' }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'prod' }}
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_infrastructure == 'true' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Infrastructure Stack
+        run: |
+          export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+          chmod +x aws/deploy-infrastructure.sh
+          ./aws/deploy-infrastructure.sh ${{ env.ENVIRONMENT }} ${{ env.AWS_REGION }}
+
+  deploy-application:
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure]
+    if: always() && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if infrastructure stack exists
+        id: check-infrastructure
+        run: |
+          if aws cloudformation describe-stacks \
+              --stack-name ${{ env.ENVIRONMENT }}-airweave-infrastructure-stack \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Stacks[0].StackStatus' \
+              --output text >/dev/null 2>&1; then
+            echo "infrastructure-exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Infrastructure stack found"
+          else
+            echo "infrastructure-exists=false" >> $GITHUB_OUTPUT
+            echo "❌ Infrastructure stack not found"
+          fi
+
+      - name: Fail if infrastructure missing
+        if: steps.check-infrastructure.outputs.infrastructure-exists != 'true'
+        run: |
+          echo "❌ Error: Infrastructure stack not found!"
+          echo "🔧 Please run the workflow with 'Deploy infrastructure stack' checked first"
+          echo "   OR manually run: ./aws/deploy-infrastructure.sh ${{ env.ENVIRONMENT }} ${{ env.AWS_REGION }}"
+          exit 1
+
+      - name: Deploy Application Stack (Fast)
+        run: |
+          export ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}"
+          export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+          export MISTRAL_API_KEY="${{ secrets.MISTRAL_API_KEY }}"
+          export COMPOSIO_API_KEY="${{ secrets.COMPOSIO_API_KEY }}"
+          chmod +x aws/deploy-application.sh
+          ./aws/deploy-application.sh ${{ env.ENVIRONMENT }} ${{ env.AWS_REGION }}
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "🎉 Fast Deployment Summary"
+          echo "=========================="
+          if [ "${{ github.event.inputs.deploy_infrastructure }}" == "true" ]; then
+            echo "✅ Infrastructure deployed (~20 minutes)"
+          else
+            echo "⚡ Infrastructure skipped (already exists)"
+          fi
+          echo "✅ Application deployed (~2-3 minutes)"
+          echo ""
+          echo "🎯 Future deployments will be fast!"
+          echo "   Just run this workflow without 'Deploy infrastructure stack' checked" 

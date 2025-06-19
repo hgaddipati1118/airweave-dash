@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Airweave Complete System - Using Default VPC'
+Description: 'Airweave Application Stack - Fast Deployment (2-3 minutes)'
 
 Parameters:
   Environment:
@@ -7,14 +7,6 @@ Parameters:
     Default: 'prod'
     AllowedValues: ['dev', 'staging', 'prod']
     Description: 'Environment name'
-  
-  DatabasePassword:
-    Type: String
-    NoEcho: true
-    MinLength: 12
-    MaxLength: 41
-    Description: 'Password for PostgreSQL database'
-    ConstraintDescription: 'Must be 12-41 characters'
   
   EncryptionKey:
     Type: String
@@ -39,24 +31,15 @@ Parameters:
     NoEcho: true
     Default: ''
     Description: 'Composio API key for Gmail integration (optional)'
-  
-  VpcId:
-    Type: String
-    Default: 'vpc-03116f055be858bc1'
-    Description: 'VPC ID for the deployment (default VPC)'
-  
-  SubnetIds:
-    Type: CommaDelimitedList
-    Default: 'subnet-016d1596d98d75683,subnet-0c54bdf50dd8fc5ac,subnet-03588fbdf16c9da40,subnet-0e8343176f3f06b49,subnet-05d7d3002279a3df9,subnet-08201244722fe245d'
-    Description: 'List of subnet IDs for the deployment'
 
 Resources:
-  # Security Groups
+  # Application Load Balancer Security Group
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: 'Security group for Application Load Balancer'
-      VpcId: !Ref VpcId
+      VpcId: 
+        Fn::ImportValue: !Sub '${Environment}-airweave-vpc-id'
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -70,48 +53,6 @@ Resources:
         - Key: Name
           Value: !Sub '${Environment}-airweave-alb-sg'
 
-  ECSSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: 'Security group for ECS tasks'
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8001
-          ToPort: 8002
-          SourceSecurityGroupId: !Ref ALBSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub '${Environment}-airweave-ecs-sg'
-
-  DatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: 'Security group for RDS PostgreSQL'
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          SourceSecurityGroupId: !Ref ECSSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub '${Environment}-airweave-db-sg'
-
-  RedisSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: 'Security group for ElastiCache Redis'
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 6379
-          ToPort: 6379
-          SourceSecurityGroupId: !Ref ECSSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub '${Environment}-airweave-redis-sg'
-
   # Application Load Balancer
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -121,7 +62,9 @@ Resources:
       Type: application
       SecurityGroups:
         - !Ref ALBSecurityGroup
-      Subnets: !Ref SubnetIds
+      Subnets: !Split 
+        - ','
+        - Fn::ImportValue: !Sub '${Environment}-airweave-subnet-ids'
       Tags:
         - Key: Name
           Value: !Sub '${Environment}-airweave-alb'
@@ -134,7 +77,8 @@ Resources:
       Port: 8001
       Protocol: HTTP
       TargetType: ip
-      VpcId: !Ref VpcId
+      VpcId: 
+        Fn::ImportValue: !Sub '${Environment}-airweave-vpc-id'
       HealthCheckPath: /health
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 10
@@ -148,7 +92,8 @@ Resources:
       Port: 8002
       Protocol: HTTP
       TargetType: ip
-      VpcId: !Ref VpcId
+      VpcId: 
+        Fn::ImportValue: !Sub '${Environment}-airweave-vpc-id'
       HealthCheckPath: /health
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 10
@@ -179,63 +124,6 @@ Resources:
             - '/dash/*'
       ListenerArn: !Ref ALBListener
       Priority: 100
-
-  # DB Subnet Group
-  DatabaseSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: 'Subnet group for RDS database'
-      SubnetIds: !Ref SubnetIds
-      Tags:
-        - Key: Name
-          Value: !Sub '${Environment}-airweave-db-subnet-group'
-
-  # Cache Subnet Group
-  CacheSubnetGroup:
-    Type: AWS::ElastiCache::SubnetGroup
-    Properties:
-      Description: 'Subnet group for ElastiCache'
-      SubnetIds: !Ref SubnetIds
-
-  # RDS PostgreSQL Instance (using default VPC)
-  DatabaseInstance:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    Properties:
-      DBInstanceIdentifier: !Sub '${Environment}-airweave-db'
-      DBInstanceClass: 'db.t3.micro'
-      Engine: postgres
-      EngineVersion: '16.4'
-      AllocatedStorage: 20
-      StorageType: gp2
-      StorageEncrypted: true
-      DBName: airweave
-      MasterUsername: airweave
-      MasterUserPassword: !Ref DatabasePassword
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      VPCSecurityGroups:
-        - !Ref DatabaseSecurityGroup
-      BackupRetentionPeriod: 7
-      MultiAZ: false
-      PubliclyAccessible: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${Environment}-airweave-db'
-
-  # ElastiCache Redis (using default VPC)
-  RedisCluster:
-    Type: AWS::ElastiCache::CacheCluster
-    Properties:
-      ClusterName: !Sub '${Environment}-airweave-redis'
-      Engine: redis
-      CacheNodeType: cache.t3.micro
-      NumCacheNodes: 1
-      CacheSubnetGroupName: !Ref CacheSubnetGroup
-      VpcSecurityGroupIds:
-        - !Ref RedisSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub '${Environment}-airweave-redis'
 
   # ECS Cluster
   ECSCluster:
@@ -312,6 +200,17 @@ Resources:
       LogGroupName: !Sub '/ecs/${Environment}-airweave-dash-client'
       RetentionInDays: 7
 
+  # Update ECS Security Group to allow ALB traffic
+  ECSSecurityGroupIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Fn::ImportValue: !Sub '${Environment}-airweave-ecs-sg-id'
+      IpProtocol: tcp
+      FromPort: 8001
+      ToPort: 8002
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+
   # ECS Task Definitions
   BackendTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -334,15 +233,18 @@ Resources:
             - Name: ENVIRONMENT
               Value: !Ref Environment
             - Name: POSTGRES_HOST
-              Value: !GetAtt DatabaseInstance.Endpoint.Address
+              Value: 
+                Fn::ImportValue: !Sub '${Environment}-airweave-db-endpoint'
             - Name: POSTGRES_DB
               Value: airweave
             - Name: POSTGRES_USER
               Value: airweave
             - Name: POSTGRES_PASSWORD
-              Value: !Ref DatabasePassword
+              Value: 
+                Fn::ImportValue: !Sub '${Environment}-airweave-db-password'
             - Name: REDIS_HOST
-              Value: !GetAtt RedisCluster.RedisEndpoint.Address
+              Value: 
+                Fn::ImportValue: !Sub '${Environment}-airweave-redis-endpoint'
             - Name: REDIS_PORT
               Value: '6379'
             - Name: ENCRYPTION_KEY
@@ -360,7 +262,8 @@ Resources:
             - Name: FIRST_SUPERUSER
               Value: 'admin@airweave.ai'
             - Name: FIRST_SUPERUSER_PASSWORD
-              Value: !Ref DatabasePassword
+              Value: 
+                Fn::ImportValue: !Sub '${Environment}-airweave-db-password'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -432,8 +335,10 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - !Ref ECSSecurityGroup
-          Subnets: !Ref SubnetIds
+            - Fn::ImportValue: !Sub '${Environment}-airweave-ecs-sg-id'
+          Subnets: !Split 
+            - ','
+            - Fn::ImportValue: !Sub '${Environment}-airweave-subnet-ids'
           AssignPublicIp: ENABLED
       LoadBalancers:
         - ContainerName: backend
@@ -455,8 +360,10 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - !Ref ECSSecurityGroup
-          Subnets: !Ref SubnetIds
+            - Fn::ImportValue: !Sub '${Environment}-airweave-ecs-sg-id'
+          Subnets: !Split 
+            - ','
+            - Fn::ImportValue: !Sub '${Environment}-airweave-subnet-ids'
           AssignPublicIp: ENABLED
       LoadBalancers:
         - ContainerName: dash-client
@@ -483,14 +390,8 @@ Outputs:
     Export:
       Name: !Sub '${Environment}-airweave-dash-client-url'
 
-  DatabaseEndpoint:
-    Description: 'RDS PostgreSQL Endpoint'
-    Value: !GetAtt DatabaseInstance.Endpoint.Address
+  ECSClusterName:
+    Description: 'ECS Cluster Name'
+    Value: !Ref ECSCluster
     Export:
-      Name: !Sub '${Environment}-airweave-db-endpoint'
-
-  RedisEndpoint:
-    Description: 'ElastiCache Redis Endpoint'
-    Value: !GetAtt RedisCluster.RedisEndpoint.Address
-    Export:
-      Name: !Sub '${Environment}-airweave-redis-endpoint' 
+      Name: !Sub '${Environment}-airweave-ecs-cluster' 

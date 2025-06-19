@@ -144,6 +144,8 @@ jobs:
               OpenAIApiKey="${{ secrets.OPENAI_API_KEY }}" \
               MistralApiKey="${{ secrets.MISTRAL_API_KEY }}" \
               ComposioApiKey="${{ secrets.COMPOSIO_API_KEY }}" \
+              VpcId="${{ steps.vpc-info.outputs.default-vpc }}" \
+              SubnetIds="${{ steps.vpc-info.outputs.default-subnets }}" \
             --capabilities CAPABILITY_IAM \
             --region ${{ env.AWS_REGION }} \
             --no-fail-on-empty-changeset

@@ -363,10 +363,19 @@ class StorageClient:
         Raises:
             RuntimeError: If configuration fails
         """
-        if settings.ENVIRONMENT == "local":
-            return self._configure_local_backend()
-        else:
+        # Prioritize local storage if the skip flag is set
+        if os.getenv("SKIP_AZURE_STORAGE", "false").lower() == "true":
+            logger.info("SKIP_AZURE_STORAGE is set, using local disk storage")
+            local_path = Path("./local_storage")
+            self._ensure_default_containers(local_path)
+            return LocalStorageBackend(local_path)
+
+        # For non-local environments, Azure is required
+        if settings.ENVIRONMENT != "local":
             return self._configure_azure_backend()
+        
+        # For local environment, try Azure but fall back to local disk
+        return self._configure_local_backend()
 
     def _configure_local_backend(self) -> StorageBackend:
         """Configure backend for local development.
@@ -376,13 +385,6 @@ class StorageClient:
         Returns:
             Configured storage backend
         """
-        # Check if we should skip Azure and use local storage directly
-        if os.getenv("SKIP_AZURE_STORAGE", "false").lower() == "true":
-            logger.info("SKIP_AZURE_STORAGE is set, using local disk storage")
-            local_path = Path("./local_storage")
-            self._ensure_default_containers(local_path)
-            return LocalStorageBackend(local_path)
-
         # Try Azure connection first
         try:
             credential = DefaultAzureCredential()
